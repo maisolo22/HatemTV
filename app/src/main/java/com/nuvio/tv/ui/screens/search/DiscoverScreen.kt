@@ -39,6 +39,7 @@ import kotlin.math.roundToInt
 fun DiscoverScreen(
     viewModel: SearchViewModel = hiltViewModel(),
     showBuiltInHeader: Boolean = true,
+    browseType: String? = null,
     onNavigateToDetail: (String, String, String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -61,10 +62,8 @@ fun DiscoverScreen(
         )
     }
 
-    LaunchedEffect(uiState.discoverLocation) {
-        if (uiState.discoverLocation != DiscoverLocation.OFF) {
-            viewModel.ensureDiscoverLoaded()
-        }
+    LaunchedEffect(uiState.discoverLocation, browseType) {
+        viewModel.ensureDiscoverLoaded(browseType)
     }
 
     val latestPendingDiscoverRestore by rememberUpdatedState(pendingDiscoverRestoreOnResume)
@@ -84,7 +83,7 @@ fun DiscoverScreen(
             .fillMaxSize()
             .background(NuvioTheme.colors.Background)
     ) {
-        if (uiState.discoverLocation == DiscoverLocation.OFF) {
+        if (browseType == null && uiState.discoverLocation == DiscoverLocation.OFF) {
             EmptyScreenState(
                 title = stringResource(R.string.discover_disabled_title),
                 subtitle = stringResource(R.string.discover_disabled_subtitle),
@@ -98,6 +97,7 @@ fun DiscoverScreen(
                 watchedSeriesIds = watchedSeriesIds,
                 focusResults = false,
                 showBuiltInHeader = showBuiltInHeader,
+                browseType = browseType,
                 firstItemFocusRequester = discoverFirstItemFocusRequester,
                 focusedItemIndex = discoverFocusedItemIndex,
                 shouldRestoreFocusedItem = restoreDiscoverFocus,

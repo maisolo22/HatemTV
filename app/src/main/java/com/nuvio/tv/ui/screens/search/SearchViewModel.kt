@@ -90,6 +90,7 @@ class SearchViewModel @Inject constructor(
     private var activeSearchQuery: String? = null
     private var searchGeneration = 0L
     private var discoverJob: Job? = null
+    private var requiredDiscoverType: String? = null
     private var catalogRowsUpdateJob: Job? = null
     private var suggestionJob: Job? = null
     private var liveSearchJob: Job? = null
@@ -126,7 +127,7 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             layoutPreferenceDataStore.discoverLocation.distinctUntilChanged().collectLatest { location ->
                 _uiState.update { it.copy(discoverLocation = location) }
-                if (location == DiscoverLocation.OFF) {
+                if (location == DiscoverLocation.OFF && requiredDiscoverType == null) {
                     discoverJob?.cancel()
                     discoverJob = null
                     revealBatchAfterNextDiscoverFetch = false
@@ -196,9 +197,10 @@ class SearchViewModel @Inject constructor(
         val cornerRadiusDp: Int
     )
 
-    fun ensureDiscoverLoaded() {
+    fun ensureDiscoverLoaded(browseType: String? = null) {
+        requiredDiscoverType = browseType
         val state = _uiState.value
-        if (state.discoverLocation == DiscoverLocation.OFF) return
+        if (state.discoverLocation == DiscoverLocation.OFF && browseType == null) return
         if (state.discoverInitialized || state.discoverLoading) return
         viewModelScope.launch { loadDiscoverCatalogs() }
     }
@@ -900,7 +902,8 @@ class SearchViewModel @Inject constructor(
         addonRepository.getInstalledAddons().first().enabledAddons() + serverCatalog.searchAddons.first()
 
     private suspend fun loadDiscoverCatalogs() {
-        if (_uiState.value.discoverLocation == DiscoverLocation.OFF) return
+        val browseType = requiredDiscoverType
+        if (_uiState.value.discoverLocation == DiscoverLocation.OFF && browseType == null) return
         _uiState.update { it.copy(discoverLoading = true) }
         val addons = try {
             searchAddons()
@@ -912,7 +915,8 @@ class SearchViewModel @Inject constructor(
         val discoverCatalogs = addons.flatMap { addon ->
             addon.catalogs
                 .filter { catalog ->
-                    !(catalog.supportsExtra("search") &&
+                    (browseType == null || catalog.apiType == browseType) &&
+                        !(catalog.supportsExtra("search") &&
                         catalog.extra.any { it.name.equals("search", ignoreCase = true) && it.isRequired })
                 }
                 .map { catalog ->
@@ -940,7 +944,7 @@ class SearchViewModel @Inject constructor(
             preferredKey = discoverSelectionDataStore.getSelectedCatalogKey(),
             currentKey = _uiState.value.selectedDiscoverCatalogKey
         )
-        val selectedType = selectedCatalog?.type ?: "movie"
+        val selectedType = selectedCatalog?.type ?: browseType ?: "movie"
         val selectedGenre: String? = null
 
         _uiState.update {
@@ -958,10 +962,8 @@ class SearchViewModel @Inject constructor(
                 discoverPage = 1
             )
         }
-        selectedCatalog?.let { catalog ->
-            viewModelScope.launch {
-                discoverSelectionDataStore.setSelectedCatalogKey(catalog.key)
-            }
+        if (browseType == null && selectedCatalog != null) {
+            viewModelScope.launch { discoverSelectionDataStore.setSelectedCatalogKey(selectedCatalog.key) }
         }
         fetchDiscoverContent(reset = true)
     }
@@ -1006,8 +1008,8 @@ class SearchViewModel @Inject constructor(
                 discoverHasMore = true
             )
         }
-        viewModelScope.launch {
-            discoverSelectionDataStore.setSelectedCatalogKey(catalog.key)
+        if (requiredDiscoverType == null) {
+            viewModelScope.launch { discoverSelectionDataStore.setSelectedCatalogKey(catalog.key) }
         }
         fetchDiscoverContent(reset = true)
     }
@@ -1097,7 +1099,7 @@ class SearchViewModel @Inject constructor(
                 supportsSkip = selectedCatalog.supportsSkip,
                 posterScreen = com.nuvio.tv.core.poster.CustomPosterScreen.SEARCH
             ).collect { result ->
-                if (_uiState.value.discoverLocation == DiscoverLocation.OFF) return@collect
+                if (_uiState.value.discoverLocation == DiscoverLocation.OFF && requiredDiscoverType == null) return@collect
                 when (result) {
                     is NetworkResult.Success -> {
                         val incoming = result.data.items

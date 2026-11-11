@@ -95,7 +95,8 @@ fun HomeScreen(
     onContinueWatchingStartFromBeginning: (ContinueWatchingItem) -> Unit = onContinueWatchingClick,
     onContinueWatchingPlayManually: (ContinueWatchingItem) -> Unit = onContinueWatchingClick,
     onNavigateToCatalogSeeAll: (String, String, String) -> Unit = { _, _, _ -> },
-    onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> }
+    onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> },
+    onPlaySpotlight: (String, String, String) -> Unit = onNavigateToDetail
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -399,6 +400,7 @@ fun HomeScreen(
                                 viewModel = viewModel,
                                 uiState = uiState,
                                 onNavigateToDetail = onNavigateToDetailStable,
+                                onPlaySpotlight = onPlaySpotlight,
                                 onContinueWatchingClick = onContinueWatchingClickStable,
                                 onContinueWatchingStartFromBeginning = onContinueWatchingStartFromBeginningStable,
                                 onContinueWatchingPlayManually = onContinueWatchingPlayManuallyStable,
@@ -639,6 +641,7 @@ private fun ModernHomeRoute(
     viewModel: HomeViewModel,
     uiState: HomeUiState,
     onNavigateToDetail: (String, String, String) -> Unit,
+    onPlaySpotlight: (String, String, String) -> Unit,
     onContinueWatchingClick: (ContinueWatchingItem) -> Unit,
     onContinueWatchingStartFromBeginning: (ContinueWatchingItem) -> Unit,
     onContinueWatchingPlayManually: (ContinueWatchingItem) -> Unit,
@@ -693,6 +696,7 @@ private fun ModernHomeRoute(
         trailerPreviewUrls = viewModel.trailerPreviewUrls,
         trailerPreviewAudioUrls = viewModel.trailerPreviewAudioUrls,
         onNavigateToDetail = onNavigateToDetail,
+        onPlaySpotlight = onPlaySpotlight,
         onContinueWatchingClick = onContinueWatchingClick,
         onContinueWatchingStartFromBeginning = onContinueWatchingStartFromBeginning,
         onContinueWatchingPlayManually = onContinueWatchingPlayManually,

@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.nuvio.tv.R
+import com.nuvio.tv.BuildConfig
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
@@ -145,7 +146,8 @@ fun ModernHomeContent(
     scrollToTopTrigger: Int = 0,
     onRequestLazyCatalogLoad: (String) -> Unit = {},
     onRowItemFocusedCallback: (String, Int, Boolean) -> Unit = { _, _, _ -> },
-    blockLeftOnFirstExpandedItem: Boolean = false
+    blockLeftOnFirstExpandedItem: Boolean = false,
+    onPlaySpotlight: (String, String, String) -> Unit = onNavigateToDetail
 ) {
     val onRowItemFocusedPassedDown = rememberUpdatedState(onRowItemFocusedCallback)
     val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
@@ -279,6 +281,7 @@ fun ModernHomeContent(
         derivedStateOf {
             if (!contentHasFocus.value) return@derivedStateOf false
             if (fullscreenTrailerPlaying.value) return@derivedStateOf true
+            if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) return@derivedStateOf false
             val rowKey = activeRowKey.value ?: return@derivedStateOf false
             val itemIndex = focusedItemByRow[rowKey] ?: 0
             itemIndex > 0
@@ -1130,30 +1133,46 @@ fun ModernHomeContent(
                     .fillMaxWidth(MODERN_HERO_TEXT_WIDTH_FRACTION)
             }
 
-            HeroTitleBlock(
-                previewProvider = {
-                    val state = heroSceneStateLambda()
-                    if (isRapidHorizontalNav.value || state.enrichmentActive) null
-                    else state.preview
-                },
-                enrichmentActive = {
-                    if (isRapidHorizontalNav.value) false
-                    else heroSceneStateLambda().enrichmentActive
-                },
-                portraitMode = !useLandscapePosters,
-                showImdbRatings = uiState.homeImdbRatingsVisibility.showRatings,
-                mdbListShowOnHero = uiState.mdbListShowOnHero,
-                mdbListRatingOrder = uiState.mdbListRatingOrder,
-                trailerPlaying = {
-                    if (isRapidHorizontalNav.value) false
-                    else {
-                        val state = heroSceneStateLambda()
-                        state.fullScreenBackdrop && shouldPlayTrailerLambda() && heroTrailerRenderedLambda()
+            if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+                IsolatedReadScope {
+                    if (!fullscreenTrailerPlaying.value) {
+                        CinemaHomeSpotlight(
+                            activeItem = activeCarouselItemState,
+                            enrichedPreviews = enrichedPreviews,
+                            onPlayCatalogItem = onPlaySpotlight,
+                            onOpenDetails = onNavigateToDetail,
+                            onContinueWatchingClick = onContinueWatchingClick,
+                            onOpenFolder = onNavigateToFolderDetail,
+                            modifier = heroMetadataModifier
+                        )
                     }
-                },
-                descriptionAutoScrollEnabled = uiState.heroDescriptionAutoScrollEnabled,
-                modifier = heroMetadataModifier
-            )
+                }
+            } else {
+                HeroTitleBlock(
+                    previewProvider = {
+                        val state = heroSceneStateLambda()
+                        if (isRapidHorizontalNav.value || state.enrichmentActive) null
+                        else state.preview
+                    },
+                    enrichmentActive = {
+                        if (isRapidHorizontalNav.value) false
+                        else heroSceneStateLambda().enrichmentActive
+                    },
+                    portraitMode = !useLandscapePosters,
+                    showImdbRatings = uiState.homeImdbRatingsVisibility.showRatings,
+                    mdbListShowOnHero = uiState.mdbListShowOnHero,
+                    mdbListRatingOrder = uiState.mdbListRatingOrder,
+                    trailerPlaying = {
+                        if (isRapidHorizontalNav.value) false
+                        else {
+                            val state = heroSceneStateLambda()
+                            state.fullScreenBackdrop && shouldPlayTrailerLambda() && heroTrailerRenderedLambda()
+                        }
+                    },
+                    descriptionAutoScrollEnabled = uiState.heroDescriptionAutoScrollEnabled,
+                    modifier = heroMetadataModifier
+                )
+            }
 
             val latestOnFocusedRowKeyChanged by rememberUpdatedState(onFocusedRowKeyChanged)
             val onActiveRowKeyChangeLambda = remember {

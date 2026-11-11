@@ -95,6 +95,7 @@ internal fun DiscoverSection(
     watchedSeriesIds: Set<String> = emptySet(),
     focusResults: Boolean,
     showBuiltInHeader: Boolean = true,
+    browseType: String? = null,
     firstItemFocusRequester: FocusRequester,
     focusedItemIndex: Int,
     shouldRestoreFocusedItem: Boolean,
@@ -137,7 +138,13 @@ internal fun DiscoverSection(
         verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
     ) {
         Text(
-            text = stringResource(R.string.discover_title),
+            text = stringResource(
+                when (browseType) {
+                    "movie" -> R.string.cinema_movies
+                    "series" -> R.string.cinema_series
+                    else -> R.string.discover_title
+                }
+            ),
             style = MaterialTheme.typography.headlineMedium,
             color = if (showBuiltInHeader) NuvioTheme.colors.TextPrimary else Color.Transparent
         )
@@ -146,29 +153,32 @@ internal fun DiscoverSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
         ) {
-            DiscoverDropdownPicker(
-                modifier = Modifier.weight(1f)
-                    .focusRequester(filterFocusRequester),
-                title = stringResource(R.string.discover_filter_type),
-                value = selectedTypeLabel,
-                selectedValue = uiState.selectedDiscoverType,
-                expanded = expandedPicker == "type",
-                options = availableTypes.map { type ->
-                    val label = localizedTypeLabel(type)
-                    DiscoverOption(label, type)
-                },
-                onExpandedChange = { shouldExpand ->
-                    expandedPicker = if (shouldExpand) "type" else null
-                },
-                onSelect = { option ->
-                    onSelectType(option.value)
-                    expandedPicker = null
-                },
-                blockFocus = blockFilterFocus
-            )
+            if (browseType == null) {
+                DiscoverDropdownPicker(
+                    modifier = Modifier.weight(1f)
+                        .focusRequester(filterFocusRequester),
+                    title = stringResource(R.string.discover_filter_type),
+                    value = selectedTypeLabel,
+                    selectedValue = uiState.selectedDiscoverType,
+                    expanded = expandedPicker == "type",
+                    options = availableTypes.map { type ->
+                        DiscoverOption(localizedTypeLabel(type), type)
+                    },
+                    onExpandedChange = { shouldExpand ->
+                        expandedPicker = if (shouldExpand) "type" else null
+                    },
+                    onSelect = { option ->
+                        onSelectType(option.value)
+                        expandedPicker = null
+                    },
+                    blockFocus = blockFilterFocus
+                )
+            }
 
             DiscoverDropdownPicker(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).then(
+                    if (browseType != null) Modifier.focusRequester(filterFocusRequester) else Modifier
+                ),
                 title = stringResource(R.string.discover_filter_catalog),
                 value = selectedCatalogLabel,
                 selectedValue = uiState.selectedDiscoverCatalogKey,

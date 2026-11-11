@@ -1164,7 +1164,32 @@ open class MainActivity : ComponentActivity() {
                         }
                         Box(modifier = Modifier.fillMaxSize()) {
                             CompositionLocalProvider(LocalNavViewModelStoreOwner provides navViewModelStoreOwner) {
-                                if (modernSidebarEnabled) {
+                                if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+                                    val moviesLabel = stringResource(R.string.cinema_movies)
+                                    val seriesLabel = stringResource(R.string.cinema_series)
+                                    val listLabel = stringResource(R.string.cinema_my_list)
+                                    val cinemaItems = buildList {
+                                        add(DrawerItem(Screen.Home.route, strNavHome))
+                                        add(DrawerItem(Screen.CinemaMovies.route, moviesLabel))
+                                        add(DrawerItem(Screen.CinemaSeries.route, seriesLabel))
+                                        if (discoverLocation == DiscoverLocation.IN_SIDEBAR) {
+                                            add(DrawerItem(Screen.Discover.route, strNavDiscover))
+                                        }
+                                        add(DrawerItem(Screen.Library.route, listLabel))
+                                        add(DrawerItem(Screen.Search.route, strNavSearch))
+                                        add(DrawerItem(Screen.Settings.route, strNavSettings))
+                                    }
+                                    CinemaNavigationScaffold(
+                                        navController = navController,
+                                        startDestination = startDestination,
+                                        currentRoute = actualRoute,
+                                        items = cinemaItems,
+                                        activeProfileName = activeProfile?.name.orEmpty(),
+                                        showProfileSelector = profiles.size > 1,
+                                        onSwitchProfile = handleSwitchProfile,
+                                        onExitApp = handleExitApp
+                                    )
+                                } else if (modernSidebarEnabled) {
                                     ModernSidebarScaffold(
                                         longPressBackHeld = longPressBackHeld,
                                         navController = navController,

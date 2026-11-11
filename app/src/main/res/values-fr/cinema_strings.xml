@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cinema_movies">Films</string>
+    <string name="cinema_series">Séries</string>
+    <string name="cinema_my_list">Ma liste</string>
+    <string name="cinema_more_info">Plus d’infos</string>
+</resources>

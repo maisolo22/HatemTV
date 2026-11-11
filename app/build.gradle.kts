@@ -185,8 +185,11 @@ android {
     productFlavors {
         create("full") {
             dimension = "distribution"
+            applicationId = "com.maisolo.hatemtv"
+            versionNameSuffix = "-cinema.1"
+            buildConfigField("boolean", "FEATURE_CINEMA_UI_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "true")
-            buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
+            buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "true")
@@ -195,6 +198,7 @@ android {
         create("playstore") {
             dimension = "distribution"
             applicationId = "com.nuvio.app"
+            buildConfigField("boolean", "FEATURE_CINEMA_UI_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "false")
@@ -223,7 +227,11 @@ android {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (releaseStoreFilePath == null && !rootProject.file("nuviotv.jks").isFile) {
+                signingConfigs.getByName("debug")
+            } else {
+                signingConfigs.getByName("release")
+            }
             isDebuggable = parseBooleanProperty(providers.gradleProperty("debuggable").orNull)
             isMinifyEnabled = false
 

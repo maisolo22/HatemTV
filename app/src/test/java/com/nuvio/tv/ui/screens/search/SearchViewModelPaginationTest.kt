@@ -113,11 +113,39 @@ class SearchViewModelPaginationTest {
         )
     }
 
+    @Test
+    fun `series tab loads only series catalogs even when general discovery is disabled`() = runTest {
+        val repository = RecordingCatalogRepository()
+        val viewModel = newViewModel(
+            repository = repository,
+            extraCatalogs = listOf(
+                CatalogDescriptor(type = ContentType.SERIES, id = "series-top", name = "Popular series"),
+                CatalogDescriptor(
+                    type = ContentType.SERIES,
+                    id = "series-search",
+                    name = "Series search",
+                    extra = listOf(CatalogExtra(name = "search", isRequired = true))
+                )
+            )
+        )
+        advanceUntilIdle()
+
+        viewModel.ensureDiscoverLoaded("series")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("series", state.selectedDiscoverType)
+        assertEquals(listOf("series-top"), state.discoverCatalogs.map { it.catalogId })
+        assertEquals(listOf("series" to "series-top"), repository.requestedCatalogs)
+        assertEquals(ContentType.SERIES, state.discoverResults.single().type)
+    }
+
     /** Answers every query, recording what it was asked for and paging indefinitely. */
     private class RecordingCatalogRepository(
         private val pageDelayMs: Long = 0L
     ) : CatalogRepository {
         val queries = mutableListOf<String>()
+        val requestedCatalogs = mutableListOf<Pair<String, String>>()
 
         override fun getCatalog(
             addonBaseUrl: String,
@@ -133,25 +161,27 @@ class SearchViewModelPaginationTest {
             posterScreen: com.nuvio.tv.core.poster.CustomPosterScreen
         ): Flow<NetworkResult<CatalogRow>> = flow {
             val query = extraArgs["search"].orEmpty()
+            requestedCatalogs.add(type to catalogId)
             emit(NetworkResult.Loading)
             if (skip > 0) {
                 queries.add(query)
                 if (pageDelayMs > 0) delay(pageDelayMs)
             }
-            emit(NetworkResult.Success(row(catalogId, query, skip)))
+            val contentType = if (type == "series") ContentType.SERIES else ContentType.MOVIE
+            emit(NetworkResult.Success(row(catalogId, query, skip, contentType)))
         }
 
-        private fun row(catalogId: String, query: String, skip: Int): CatalogRow = CatalogRow(
+        private fun row(catalogId: String, query: String, skip: Int, contentType: ContentType): CatalogRow = CatalogRow(
             addonId = ADDON_ID,
             addonName = "Addon",
             addonBaseUrl = "https://example.test",
             catalogId = catalogId,
             catalogName = catalogId,
-            type = ContentType.MOVIE,
+            type = contentType,
             items = listOf(
                 MetaPreview(
                     id = "${query}_$skip",
-                    type = ContentType.MOVIE,
+                    type = contentType,
                     name = if (skip > 0) "$query page $skip" else query,
                     poster = null,
                     posterShape = PosterShape.POSTER,
@@ -178,7 +208,10 @@ class SearchViewModelPaginationTest {
         override suspend fun setAddonEnabled(url: String, enabled: Boolean) = error("unused")
     }
 
-    private fun newViewModel(repository: CatalogRepository): SearchViewModel {
+    private fun newViewModel(
+        repository: CatalogRepository,
+        extraCatalogs: List<CatalogDescriptor> = emptyList()
+    ): SearchViewModel {
         val addon = Addon(
             id = ADDON_ID,
             name = "Addon",
@@ -193,8 +226,8 @@ class SearchViewModelPaginationTest {
                     name = CATALOG_ID,
                     extra = listOf(CatalogExtra(name = "search"))
                 )
-            ),
-            types = listOf(ContentType.MOVIE),
+            ) + extraCatalogs,
+            types = (listOf(ContentType.MOVIE) + extraCatalogs.map { it.type }).distinct(),
             resources = emptyList()
         )
 

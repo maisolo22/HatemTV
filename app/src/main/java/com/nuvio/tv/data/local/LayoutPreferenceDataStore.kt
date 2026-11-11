@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.core.sync.LocalHomeCatalogSettingsState
 import com.nuvio.tv.core.sync.SyncHomeCatalogPayload
@@ -239,11 +240,11 @@ class LayoutPreferenceDataStore @Inject constructor(
     }
 
     val modernLandscapePostersEnabled: Flow<Boolean> = profileFlow { prefs ->
-        prefs[modernLandscapePostersEnabledKey] ?: false
+        prefs[modernLandscapePostersEnabledKey] ?: BuildConfig.FEATURE_CINEMA_UI_ENABLED
     }
 
     val modernHeroFullScreenBackdropEnabled: Flow<Boolean> = profileFlow { prefs ->
-        prefs[modernHeroFullScreenBackdropKey] ?: false
+        prefs[modernHeroFullScreenBackdropKey] ?: BuildConfig.FEATURE_CINEMA_UI_ENABLED
     }
 
     val heroSectionEnabled: Flow<Boolean> = profileFlow { prefs ->

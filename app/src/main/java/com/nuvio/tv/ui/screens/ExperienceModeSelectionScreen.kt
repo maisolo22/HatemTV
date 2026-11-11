@@ -42,6 +42,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.nuvio.tv.data.local.ExperienceModeDataStore
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
+import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.domain.model.ExperienceMode
 import com.nuvio.tv.domain.model.HomeLayout
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,7 +56,7 @@ class ExperienceModeSelectionViewModel @Inject constructor(
 ) : ViewModel() {
     suspend fun choose(mode: ExperienceMode) {
         experienceModeDataStore.setMode(mode)
-        if (mode == ExperienceMode.ESSENTIAL) {
+        if (mode == ExperienceMode.ESSENTIAL || BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
             layoutPreferenceDataStore.setLayout(HomeLayout.MODERN)
         }
     }

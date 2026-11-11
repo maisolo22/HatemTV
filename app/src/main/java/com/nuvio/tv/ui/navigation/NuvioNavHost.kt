@@ -24,6 +24,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.core.party.PartyMedia
 import com.nuvio.tv.domain.model.ExperienceMode
@@ -170,7 +171,7 @@ private fun PlaybackNavHost(
         composable(Screen.ExperienceModeSelection.route) {
             ExperienceModeSelectionScreen(
                 onContinue = { mode ->
-                    val destination = if (mode == ExperienceMode.ESSENTIAL) {
+                    val destination = if (mode == ExperienceMode.ESSENTIAL || BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
                         Screen.Home.route
                     } else {
                         Screen.LayoutSelection.route
@@ -244,17 +245,24 @@ private fun PlaybackNavHost(
                 }
             }
 
+            fun openHomeDetail(itemId: String, itemType: String, addonBaseUrl: String, playOnLoad: Boolean) {
+                navController.navigate(
+                    Screen.Detail.createRoute(
+                        itemId = itemId,
+                        itemType = itemType,
+                        addonBaseUrl = addonBaseUrl,
+                        heroBackdropUrl = HeroBackdropState.consumeAndClear(),
+                        playOnLoad = playOnLoad
+                    )
+                )
+            }
+
             HomeScreen(
                 onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
-                    val heroBackdrop = HeroBackdropState.consumeAndClear()
-                    navController.navigate(
-                        Screen.Detail.createRoute(
-                            itemId = itemId,
-                            itemType = itemType,
-                            addonBaseUrl = addonBaseUrl,
-                            heroBackdropUrl = heroBackdrop
-                        )
-                    )
+                    openHomeDetail(itemId, itemType, addonBaseUrl, playOnLoad = false)
+                },
+                onPlaySpotlight = { itemId, itemType, addonBaseUrl ->
+                    openHomeDetail(itemId, itemType, addonBaseUrl, playOnLoad = true)
                 },
                 onContinueWatchingClick = onContinueWatchingClick@{ item ->
                     if (!playbackAvailability.canStream(item)) {
@@ -1214,21 +1222,28 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Discover.route) {
-            DiscoverScreen(
-                showBuiltInHeader = !hideBuiltInHeaders,
-                onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
-                    val heroBackdrop = HeroBackdropState.consumeAndClear()
-                    navController.navigate(
-                        Screen.Detail.createRoute(
-                            itemId = itemId,
-                            itemType = itemType,
-                            addonBaseUrl = addonBaseUrl,
-                            heroBackdropUrl = heroBackdrop
+        for ((route, browseType) in listOf(
+            Screen.Discover.route to null,
+            Screen.CinemaMovies.route to "movie",
+            Screen.CinemaSeries.route to "series"
+        )) {
+            composable(route) {
+                DiscoverScreen(
+                    showBuiltInHeader = !hideBuiltInHeaders,
+                    browseType = browseType,
+                    onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
+                        val heroBackdrop = HeroBackdropState.consumeAndClear()
+                        navController.navigate(
+                            Screen.Detail.createRoute(
+                                itemId = itemId,
+                                itemType = itemType,
+                                addonBaseUrl = addonBaseUrl,
+                                heroBackdropUrl = heroBackdrop
+                            )
                         )
-                    )
-                }
-            )
+                    }
+                )
+            }
         }
 
         composable(Screen.Library.route) {
