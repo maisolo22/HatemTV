@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -43,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
@@ -214,7 +216,7 @@ private fun ServerMenuItem(
 }
 
 @Composable
-private fun ServerConnectionDialog(
+internal fun ServerConnectionDialog(
     uiState: ServerConnectionUiState,
     onDiscover: (String) -> Unit,
     onConnect: () -> Unit,
@@ -236,17 +238,33 @@ private fun ServerConnectionDialog(
         mutableStateOf(uiState.activeServer.discoveryUrl?.substringBefore("/.well-known/nuvio").orEmpty())
     }
     val urlFocusRequester = remember { FocusRequester() }
+    val checkFocusRequester = remember { FocusRequester() }
+    val cancelFocusRequester = remember { FocusRequester() }
     val canDiscover = serverUrl.isNotBlank() && !uiState.isDiscovering
 
     LaunchedEffect(Unit) {
-        urlFocusRequester.requestFocus()
+        urlFocusRequester.requestFocusAfterFrames()
     }
 
     NuvioDialog(
         onDismiss = onDismiss,
         title = stringResource(R.string.custom_server_title),
         subtitle = stringResource(R.string.custom_server_description),
-        suppressFirstKeyUp = false
+        suppressFirstKeyUp = false,
+        actions = {
+            ServerDialogButtons(
+                confirmLabel = stringResource(
+                    if (uiState.isDiscovering) R.string.custom_server_checking else R.string.custom_server_check
+                ),
+                onCancel = onDismiss,
+                onConfirm = { onDiscover(serverUrl) },
+                confirmEnabled = canDiscover,
+                cancelModifier = Modifier.focusRequester(cancelFocusRequester)
+                    .focusProperties { up = urlFocusRequester },
+                confirmModifier = Modifier.focusRequester(checkFocusRequester)
+                    .focusProperties { up = urlFocusRequester }
+            )
+        }
     ) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             InputField(
@@ -257,6 +275,9 @@ private fun ServerConnectionDialog(
                 imeAction = ImeAction.Done,
                 onImeAction = { if (canDiscover) onDiscover(serverUrl) },
                 modifier = Modifier.focusRequester(urlFocusRequester)
+                    .focusProperties {
+                        down = if (canDiscover) checkFocusRequester else cancelFocusRequester
+                    }
             )
         }
         uiState.error?.let {
@@ -265,38 +286,6 @@ private fun ServerConnectionDialog(
                 containerColor = Color(0x33C62828),
                 contentColor = Color(0xFFFF8A80)
             )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
-        ) {
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.colors(
-                    containerColor = NuvioTheme.colors.BackgroundCard,
-                    contentColor = NuvioTheme.colors.TextPrimary
-                )
-            ) {
-                Text(stringResource(R.string.action_cancel))
-            }
-            Button(
-                onClick = { onDiscover(serverUrl) },
-                enabled = canDiscover,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.colors(
-                    containerColor = NuvioTheme.colors.BackgroundCard,
-                    contentColor = NuvioTheme.colors.TextPrimary
-                )
-            ) {
-                Text(
-                    if (uiState.isDiscovering) {
-                        stringResource(R.string.custom_server_checking)
-                    } else {
-                        stringResource(R.string.custom_server_check)
-                    }
-                )
-            }
         }
     }
 }
@@ -312,7 +301,7 @@ private fun ServerTrustConfirmationDialog(
     val cancelFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        cancelFocusRequester.requestFocus()
+        cancelFocusRequester.requestFocusAfterFrames()
     }
 
     NuvioDialog(
@@ -320,7 +309,18 @@ private fun ServerTrustConfirmationDialog(
         title = stringResource(R.string.custom_server_review_title),
         subtitle = stringResource(R.string.custom_server_review_description),
         width = 620.dp,
-        suppressFirstKeyUp = false
+        actions = {
+            ServerDialogButtons(
+                confirmLabel = stringResource(
+                    if (isSwitching) R.string.custom_server_switching else R.string.custom_server_trust_action
+                ),
+                onCancel = onDismiss,
+                onConfirm = onConnect,
+                cancelEnabled = !isSwitching,
+                confirmEnabled = !isSwitching,
+                cancelModifier = Modifier.focusRequester(cancelFocusRequester)
+            )
+        }
     ) {
         ServerDetailRow(
             icon = Icons.Default.CheckCircle,
@@ -341,41 +341,6 @@ private fun ServerTrustConfirmationDialog(
                 containerColor = Color(0x33C62828),
                 contentColor = Color(0xFFFF8A80)
             )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
-        ) {
-            Button(
-                onClick = onDismiss,
-                enabled = !isSwitching,
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(cancelFocusRequester),
-                colors = ButtonDefaults.colors(
-                    containerColor = NuvioTheme.colors.BackgroundCard,
-                    contentColor = NuvioTheme.colors.TextPrimary
-                )
-            ) {
-                Text(stringResource(R.string.action_cancel))
-            }
-            Button(
-                onClick = onConnect,
-                enabled = !isSwitching,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.colors(
-                    containerColor = NuvioTheme.colors.BackgroundCard,
-                    contentColor = NuvioTheme.colors.TextPrimary
-                )
-            ) {
-                Text(
-                    if (isSwitching) {
-                        stringResource(R.string.custom_server_switching)
-                    } else {
-                        stringResource(R.string.custom_server_trust_action)
-                    }
-                )
-            }
         }
     }
 }
@@ -425,14 +390,25 @@ private fun OfficialServerConfirmationDialog(
     val cancelFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        cancelFocusRequester.requestFocus()
+        cancelFocusRequester.requestFocusAfterFrames()
     }
 
     NuvioDialog(
         onDismiss = onDismiss,
         title = stringResource(R.string.official_server_title),
         subtitle = stringResource(R.string.official_server_description),
-        suppressFirstKeyUp = false
+        actions = {
+            ServerDialogButtons(
+                confirmLabel = stringResource(
+                    if (isSwitching) R.string.custom_server_switching else R.string.official_server_action
+                ),
+                onCancel = onDismiss,
+                onConfirm = onConfirm,
+                cancelEnabled = !isSwitching,
+                confirmEnabled = !isSwitching,
+                cancelModifier = Modifier.focusRequester(cancelFocusRequester)
+            )
+        }
     ) {
         error?.let {
             ServerMessage(
@@ -441,40 +417,44 @@ private fun OfficialServerConfirmationDialog(
                 contentColor = Color(0xFFFF8A80)
             )
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+    }
+}
+
+@Composable
+private fun ServerDialogButtons(
+    confirmLabel: String,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit,
+    cancelEnabled: Boolean = true,
+    confirmEnabled: Boolean = true,
+    cancelModifier: Modifier = Modifier,
+    confirmModifier: Modifier = Modifier
+) {
+    val colors = ButtonDefaults.colors(
+        containerColor = NuvioTheme.colors.BackgroundCard,
+        contentColor = NuvioTheme.colors.TextPrimary
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+    ) {
+        Button(
+            onClick = onCancel,
+            enabled = cancelEnabled,
+            modifier = cancelModifier.weight(1f),
+            colors = colors,
+            scale = ButtonDefaults.scale(focusedScale = 1f)
         ) {
-            Button(
-                onClick = onDismiss,
-                enabled = !isSwitching,
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(cancelFocusRequester),
-                colors = ButtonDefaults.colors(
-                    containerColor = NuvioTheme.colors.BackgroundCard,
-                    contentColor = NuvioTheme.colors.TextPrimary
-                )
-            ) {
-                Text(stringResource(R.string.action_cancel))
-            }
-            Button(
-                onClick = onConfirm,
-                enabled = !isSwitching,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.colors(
-                    containerColor = NuvioTheme.colors.BackgroundCard,
-                    contentColor = NuvioTheme.colors.TextPrimary
-                )
-            ) {
-                Text(
-                    if (isSwitching) {
-                        stringResource(R.string.custom_server_switching)
-                    } else {
-                        stringResource(R.string.official_server_action)
-                    }
-                )
-            }
+            Text(stringResource(R.string.action_cancel), textAlign = TextAlign.Center)
+        }
+        Button(
+            onClick = onConfirm,
+            enabled = confirmEnabled,
+            modifier = confirmModifier.weight(1.6f),
+            colors = colors,
+            scale = ButtonDefaults.scale(focusedScale = 1f)
+        ) {
+            Text(confirmLabel, textAlign = TextAlign.Center)
         }
     }
 }
