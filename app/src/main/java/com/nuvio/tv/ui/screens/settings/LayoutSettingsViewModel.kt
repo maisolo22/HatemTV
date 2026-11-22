@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class LayoutSettingsUiState(
+    val nativeLegacySkinEnabled: Boolean = com.nuvio.tv.BuildConfig.FEATURE_CINEMA_UI_ENABLED,
     val selectedLayout: HomeLayout = HomeLayout.MODERN,
     val hasChosen: Boolean = false,
     val availableCatalogs: List<CatalogInfo> = emptyList(),
@@ -103,6 +104,7 @@ data class CatalogInfo(
 )
 
 sealed class LayoutSettingsEvent {
+    data class SetNativeLegacySkinEnabled(val enabled: Boolean) : LayoutSettingsEvent()
     data class SelectLayout(val layout: HomeLayout) : LayoutSettingsEvent()
     data class ToggleHeroCatalog(val catalogKey: String) : LayoutSettingsEvent()
     data class SetSidebarCollapsed(val collapsed: Boolean) : LayoutSettingsEvent()
@@ -219,6 +221,11 @@ class LayoutSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             layoutPreferenceDataStore.sidebarCollapsedByDefault.distinctUntilChanged().collectLatest { collapsed ->
                 updateUiStateIfChanged { it.copy(sidebarCollapsedByDefault = collapsed) }
+            }
+        }
+        viewModelScope.launch {
+            layoutPreferenceDataStore.nativeLegacySkinEnabled.distinctUntilChanged().collectLatest { enabled ->
+                updateUiStateIfChanged { it.copy(nativeLegacySkinEnabled = enabled) }
             }
         }
         viewModelScope.launch {
@@ -456,6 +463,9 @@ class LayoutSettingsViewModel @Inject constructor(
             is LayoutSettingsEvent.SelectLayout -> selectLayout(event.layout)
             is LayoutSettingsEvent.ToggleHeroCatalog -> toggleHeroCatalog(event.catalogKey)
             is LayoutSettingsEvent.SetSidebarCollapsed -> setSidebarCollapsed(event.collapsed)
+            is LayoutSettingsEvent.SetNativeLegacySkinEnabled -> viewModelScope.launch {
+                layoutPreferenceDataStore.setNativeLegacySkinEnabled(event.enabled)
+            }
             is LayoutSettingsEvent.SetModernSidebarEnabled -> setModernSidebarEnabled(event.enabled)
             is LayoutSettingsEvent.SetModernSidebarBlurEnabled -> setModernSidebarBlurEnabled(event.enabled)
             is LayoutSettingsEvent.SetModernLandscapePostersEnabled -> setModernLandscapePostersEnabled(event.enabled)

@@ -69,6 +69,15 @@ class LayoutPreferenceDataStore @Inject constructor(
 
     private val gson = Gson()
 
+    private val nativeLegacySkinKey = booleanPreferencesKey("native_legacy_skin")
+    val nativeLegacySkinEnabled: Flow<Boolean> = profileFlow { prefs ->
+        prefs[nativeLegacySkinKey] ?: BuildConfig.FEATURE_CINEMA_UI_ENABLED
+    }
+
+    suspend fun setNativeLegacySkinEnabled(enabled: Boolean) {
+        store().edit { it[nativeLegacySkinKey] = enabled }
+    }
+
     private val layoutKey = stringPreferencesKey("selected_layout")
     private val hasChosenKey = booleanPreferencesKey("has_chosen_layout")
     private val heroCatalogKey = stringPreferencesKey("hero_catalog_key")

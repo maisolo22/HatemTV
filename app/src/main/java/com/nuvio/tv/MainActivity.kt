@@ -50,6 +50,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -854,8 +858,11 @@ open class MainActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                    val sidebarCollapsed = mainUiPrefs.sidebarCollapsed
-                    val modernSidebarEnabled = mainUiPrefs.modernSidebarEnabled
+                    val nativeLegacySkin by layoutPreferenceDataStore.nativeLegacySkinEnabled.collectAsState(
+                        initial = BuildConfig.FEATURE_CINEMA_UI_ENABLED
+                    )
+                    val sidebarCollapsed = if (nativeLegacySkin) true else mainUiPrefs.sidebarCollapsed
+                    val modernSidebarEnabled = nativeLegacySkin || mainUiPrefs.modernSidebarEnabled
                     val modernSidebarBlurEnabled =
                         mainUiPrefs.modernSidebarBlurPref && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
                     val hideBuiltInHeadersForFloatingPill = modernSidebarEnabled && !sidebarCollapsed
@@ -1051,6 +1058,12 @@ open class MainActivity : ComponentActivity() {
                             add(Screen.Search.route)
                             add(Screen.Library.route)
                             add(Screen.Settings.route)
+                            if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+                                add(Screen.CinemaMovies.route)
+                                add(Screen.CinemaSeries.route)
+                                add(Screen.LiveTV.route)
+                                add(Screen.AddonManager.route)
+                            }
                             if (discoverLocation == DiscoverLocation.IN_SIDEBAR) {
                                 add(Screen.Discover.route)
                             }
@@ -1062,7 +1075,12 @@ open class MainActivity : ComponentActivity() {
                     val strNavSearch = stringResource(R.string.nav_search)
                     val strNavLibrary = stringResource(R.string.nav_library)
                     val strNavSettings = stringResource(R.string.nav_settings)
+                    val strNavLive = stringResource(R.string.legacy_live_tv)
+                    val strNavAddons = stringResource(R.string.legacy_addons)
+                    val strNavMovies = stringResource(R.string.cinema_movies)
+                    val strNavSeries = stringResource(R.string.cinema_series)
                     val drawerItems = remember(
+                        strNavLive, strNavAddons, strNavMovies, strNavSeries,
                         strNavHome,
                         strNavDiscover,
                         strNavSearch,
@@ -1078,6 +1096,12 @@ open class MainActivity : ComponentActivity() {
                                     icon = Icons.Default.Home
                                 )
                             )
+                            if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+                                add(DrawerItem(Screen.CinemaMovies.route, strNavMovies, icon = Icons.Default.Movie))
+                                add(DrawerItem(Screen.CinemaSeries.route, strNavSeries, icon = Icons.Default.VideoLibrary))
+                                add(DrawerItem(Screen.LiveTV.route, strNavLive, icon = Icons.Default.LiveTv))
+                                add(DrawerItem(Screen.AddonManager.route, strNavAddons, icon = Icons.Default.Extension))
+                            }
                             if (discoverLocation == DiscoverLocation.IN_SIDEBAR) {
                                 add(
                                     DrawerItem(
@@ -1164,7 +1188,7 @@ open class MainActivity : ComponentActivity() {
                         }
                         Box(modifier = Modifier.fillMaxSize()) {
                             CompositionLocalProvider(LocalNavViewModelStoreOwner provides navViewModelStoreOwner) {
-                                if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+                                if (BuildConfig.FEATURE_CINEMA_UI_ENABLED && !nativeLegacySkin) {
                                     val moviesLabel = stringResource(R.string.cinema_movies)
                                     val seriesLabel = stringResource(R.string.cinema_series)
                                     val listLabel = stringResource(R.string.cinema_my_list)
@@ -1175,6 +1199,7 @@ open class MainActivity : ComponentActivity() {
                                         if (discoverLocation == DiscoverLocation.IN_SIDEBAR) {
                                             add(DrawerItem(Screen.Discover.route, strNavDiscover))
                                         }
+                                        add(DrawerItem(Screen.LiveTV.route, strNavLive))
                                         add(DrawerItem(Screen.Library.route, listLabel))
                                         add(DrawerItem(Screen.Search.route, strNavSearch))
                                         add(DrawerItem(Screen.Settings.route, strNavSettings))

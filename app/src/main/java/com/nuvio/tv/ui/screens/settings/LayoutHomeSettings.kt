@@ -55,6 +55,14 @@ internal fun LayoutHomeLayoutSection(
     uiState: LayoutSettingsUiState,
     onEvent: (LayoutSettingsEvent) -> Unit
 ) {
+    if (com.nuvio.tv.BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+        SettingsToggleRow(
+            title = stringResource(R.string.legacy_skin_title),
+            subtitle = stringResource(R.string.legacy_skin_subtitle),
+            checked = uiState.nativeLegacySkinEnabled,
+            onToggle = { onEvent(LayoutSettingsEvent.SetNativeLegacySkinEnabled(!uiState.nativeLegacySkinEnabled)) }
+        )
+    }
     val firstHomeLayoutFocusRequester = remember { FocusRequester() }
     Row(
         modifier = Modifier

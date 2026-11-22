@@ -1246,6 +1246,19 @@ private fun PlaybackNavHost(
             }
         }
 
+        composable(Screen.LiveTV.route) {
+            com.nuvio.tv.ui.screens.livetv.LiveTVScreen(
+                onManageAddons = { navController.navigate(Screen.AddonManager.route) },
+                onPlay = { item, source ->
+                    navController.navigate(Screen.Stream.createRoute(
+                        videoId = item.id, contentType = source.catalog.apiType,
+                        title = item.name, poster = item.poster, backdrop = item.backdropUrl,
+                        contentId = item.id, contentName = item.name, manualSelection = true
+                    ))
+                }
+            )
+        }
+
         composable(Screen.Library.route) {
             LibraryScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,

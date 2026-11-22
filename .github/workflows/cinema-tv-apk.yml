@@ -18,11 +18,16 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
+      - uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: hatemtv-debug-signing-v1
       - name: Test discovery and home focus
         run: >-
           ./gradlew :app:testFullDebugUnitTest
           --tests 'com.nuvio.tv.ui.screens.search.SearchViewModelPaginationTest'
           --tests 'com.nuvio.tv.ui.screens.home.ModernHomeIdentityRelocationTest'
+          --tests 'com.nuvio.tv.ui.screens.livetv.LiveTVViewModelTest'
       - name: Compile the server connection regression test
         run: ./gradlew :app:compileFullDebugAndroidTestKotlin
       - name: Build the universal APK
