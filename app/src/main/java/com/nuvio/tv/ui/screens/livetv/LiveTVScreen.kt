@@ -59,8 +59,8 @@ fun LiveTVScreen(
                     Button(
                         onClick = { viewModel.select(source.key) },
                         colors = ButtonDefaults.colors(
-                            containerColor = if (source.key == state.selectedKey) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceVariant
+                            containerColor = if (source.key == state.selectedKey) NuvioTheme.colors.FocusBackground
+                                else NuvioTheme.colors.SurfaceVariant
                         )
                     ) { Text(source.label, maxLines = 1) }
                 }

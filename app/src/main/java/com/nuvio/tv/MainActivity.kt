@@ -222,6 +222,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
+internal val LocalLegacyTVSkin = compositionLocalOf { false }
 val LocalSidebarExpanded = compositionLocalOf { false }
 val LocalContentFocusRequester = compositionLocalOf { FocusRequester.Default }
 
@@ -1187,7 +1188,10 @@ open class MainActivity : ComponentActivity() {
                             hasSelectedProfileThisSession = false
                         }
                         Box(modifier = Modifier.fillMaxSize()) {
-                            CompositionLocalProvider(LocalNavViewModelStoreOwner provides navViewModelStoreOwner) {
+                            CompositionLocalProvider(
+                                LocalNavViewModelStoreOwner provides navViewModelStoreOwner,
+                                LocalLegacyTVSkin provides nativeLegacySkin
+                            ) {
                                 if (BuildConfig.FEATURE_CINEMA_UI_ENABLED && !nativeLegacySkin) {
                                     val moviesLabel = stringResource(R.string.cinema_movies)
                                     val seriesLabel = stringResource(R.string.cinema_series)

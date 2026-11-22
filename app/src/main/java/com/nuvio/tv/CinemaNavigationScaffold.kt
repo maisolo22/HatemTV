@@ -1,6 +1,8 @@
 package com.nuvio.tv
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -106,6 +108,7 @@ internal fun CinemaNavigationScaffold(
                             listOf(Color(0xF5101010), if (showOverArtwork) Color.Transparent else Color(0xFF101010))
                         )
                     )
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 36.dp)
                     .onFocusChanged { menuHasFocus = it.hasFocus }
                     .focusGroup(),
@@ -121,7 +124,7 @@ internal fun CinemaNavigationScaffold(
                     )
                 }
                 if (showProfileSelector && activeProfileName.isNotBlank()) {
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                    Box(contentAlignment = Alignment.CenterEnd) {
                         CinemaTab(
                             label = activeProfileName,
                             selected = false,

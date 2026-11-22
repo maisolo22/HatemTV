@@ -249,7 +249,10 @@ private fun SidebarNavigationItem(
     val shape = RoundedCornerShape(NuvioRadii.tokens.full)
     val palette = NuvioTheme.palette
     val accentColor = palette.secondary
+    val legacyStyle = LocalLegacyTVSkin.current
     val backgroundColorTarget = when {
+        legacyStyle && isFocused -> Color.White
+        legacyStyle && selected -> Color.White.copy(alpha = 0.12f)
         isFocused && selected -> accentColor.copy(alpha = 0.28f)
         isFocused -> Color.White.copy(alpha = 0.12f)
         selected -> accentColor.copy(alpha = 0.15f)
@@ -263,6 +266,8 @@ private fun SidebarNavigationItem(
     val backgroundColor = if (selected && !isFocused) backgroundColorTarget else animatedBackgroundColor
 
     val contentColorTarget = when {
+        legacyStyle && isFocused -> Color(0xFF151519)
+        legacyStyle && selected -> Color.White
         selected -> accentColor
         isFocused -> colors.TextPrimary
         else -> colors.text.onOverlay
@@ -274,8 +279,9 @@ private fun SidebarNavigationItem(
     )
     val contentColor = if (selected && !isFocused) contentColorTarget else animatedContentColor
 
-    val iconBrush = if (selected) palette.accentBrush() else null
+    val iconBrush = if (selected && !legacyStyle) palette.accentBrush() else null
     val iconTintTarget = when {
+        legacyStyle && isFocused -> Color(0xFF151519)
         selected -> Color.White
         isFocused -> colors.TextPrimary
         else -> colors.text.onOverlay
@@ -287,7 +293,7 @@ private fun SidebarNavigationItem(
     )
     val iconTint = if (selected && !isFocused) iconTintTarget else animatedIconTint
     val itemScale by animateFloatAsState(
-        targetValue = if (isFocused) 1.1f else 1f,
+        targetValue = if (isFocused && !legacyStyle) 1.1f else 1f,
         animationSpec = tween(durationMillis = NuvioMotion.tokens.durations.fast, easing = NuvioMotion.tokens.easings.standard),
         label = "sidebarItemScale"
     )
