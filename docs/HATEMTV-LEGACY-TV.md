@@ -27,5 +27,5 @@ returning a working stream. Hardware remote navigation and streams must be valid
 
 CI tests source detection, raw types, pagination, source cancellation, addon disablement and retry,
 along with the existing home focus/discovery tests. It also compiles Android UI regression tests and
-builds a universal APK. The debug signing key is cached for subsequent CI builds; switching from older
-uncached builds may require reinstalling. For durable distribution, supply a private release keystore.
+builds a universal APK. These CI APKs use generated debug signing keys; updating from a different
+build may require reinstalling after backing up settings. For durable distribution, supply a private release keystore.
