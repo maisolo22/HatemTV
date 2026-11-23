@@ -20,7 +20,7 @@ internal fun xmltvTime(raw: String?): Long? = runCatching {
 internal fun epgName(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFD)
     .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
     .replace(Regex("\\b(uhd|fhd|hd|sd|4k|1080p|720p)\\b"), "")
-    .replace(Regex("[^a-z0-9]"), "")
+    .replace(Regex("[^\\p{L}\\p{N}]"), "")
 
 data class TVProgramme(val title: String, val start: Long, val end: Long, val description: String = "")
 data class XmlTVChannel(val id: String, val names: List<String>)
@@ -36,7 +36,9 @@ data class LiveTVEpg(
         val candidates = listOf(channel.id, channel.id.substringAfterLast(':'))
         channels.firstOrNull { it.id in candidates }?.let { return it.id }
         // An ambiguous name must not silently show another country's schedule.
-        return byName[epgName(channel.name)]?.distinctBy { it.id }?.singleOrNull()?.id
+        val normalized = epgName(channel.name)
+        if (normalized.isBlank()) return null
+        return byName[normalized]?.distinctBy { it.id }?.singleOrNull()?.id
     }
     fun schedule(channel: LiveTVChannel, explicitId: String? = null): List<TVProgramme> =
         channelId(channel, explicitId)?.let { programmes[it] }.orEmpty()

@@ -70,6 +70,16 @@ class LiveTVGuideTest {
         assertTrue(tvTimelineSlots(emptyList(), 100, 100).isEmpty())
     }
 
+    @Test fun `Arabic and other Unicode names remain distinct in EPG matching`() {
+        val epg = LiveTVEpg(channels = listOf(XmlTVChannel("one", listOf("الوطنية الأولى")),
+            XmlTVChannel("two", listOf("الوطنية الثانية"))))
+        assertEquals("one", epg.channelId(channel("الوطنية الأولى HD")))
+        assertEquals("two", epg.channelId(channel("الوطنية الثانية")))
+        assertNull(epg.channelId(channel("قناة أخرى")))
+        assertNull(epg.channelId(channel("")))
+        assertEquals(epgName("Événement HD"), epgName("Evenement"))
+    }
+
     @Test fun `decompressed XMLTV has a hard byte limit`() {
         val stream = LimitedTVInput(ByteArrayInputStream(ByteArray(30)), 10)
         try { stream.read(ByteArray(30)); fail("Must reject oversized XML") } catch (_: java.io.IOException) { }
