@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -68,6 +69,7 @@ fun LiveTVScreen(
     val roomyScreen = LocalConfiguration.current.screenHeightDp >= 700
     var showInformation by rememberSaveable(scoped.profileId) { mutableStateOf(roomyScreen) }
     var folderId by rememberSaveable(scoped.profileId) { mutableStateOf<String?>(null) }
+    var allChannelsSelected by rememberSaveable(scoped.profileId) { mutableStateOf(false) }
     var focusedKey by rememberSaveable(scoped.profileId) { mutableStateOf<String?>(null) }
     var windowOffset by rememberSaveable(scoped.profileId) { mutableLongStateOf(0L) }
     var manageFolders by remember(scoped.profileId) { mutableStateOf(false) }
@@ -75,6 +77,7 @@ fun LiveTVScreen(
     var channelOptions by remember(scoped.profileId) { mutableStateOf<LiveTVChannel?>(null) }
     var returnToChannel by rememberSaveable(scoped.profileId) { mutableStateOf(false) }
     val channelFocus = remember { FocusRequester() }
+    val menuFocus = remember { FocusRequester() }
     val firstAction = remember { FocusRequester() }
     val sidebarExpanded = LocalSidebarExpanded.current
     val contentFocus = LocalContentFocusRequester.current
@@ -142,87 +145,104 @@ fun LiveTVScreen(
             }
         }
         }
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(4.dp)) {
-            item { TVPill(stringResource(R.string.tv_all_channels), folderId == null) { folderId = null } }
-            items(library.folders, key = { it.id }) { folder ->
-                TVPill("${folder.name} · ${folder.channels.size}", folder.id == folderId) { folderId = folder.id }
-            }
-            item { TVPill("+ " + stringResource(R.string.tv_folder_new)) { manageFolders = true } }
-            items(state.sources, key = { "source:" + it.key }) { source ->
-                TVPill(source.label, folderId == null && source.key == state.selectedKey) {
-                    folderId = null; focusedKey = null; viewModel.select(source.key)
-                }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (library.viewMode == LiveTVViewMode.GUIDE) {
-                TVPill("‹ " + stringResource(R.string.tv_previous_window)) { windowOffset = (windowOffset - 1_800_000).coerceAtLeast(-6 * 3_600_000L) }
-                TVPill(stringResource(R.string.tv_now)) { windowOffset = 0 }
-                TVPill(stringResource(R.string.tv_next_window) + " ›") { windowOffset = (windowOffset + 1_800_000).coerceAtMost(45 * 3_600_000L) }
-            }
-            if (selected != null) TVPill(stringResource(R.string.tv_channel_options)) { channelOptions = selected }
-            Text(when {
-                saveFailed -> stringResource(R.string.tv_save_failed)
-                epgLoading -> stringResource(R.string.tv_epg_loading)
-                epgFailed -> stringResource(R.string.tv_epg_failed)
-                epgPartial -> stringResource(R.string.tv_epg_partial)
-                epgStale -> stringResource(R.string.tv_epg_stale)
-                library.epgSources.isEmpty() -> stringResource(R.string.tv_epg_not_set)
-                else -> stringResource(R.string.tv_channel_count, channels.size)
-            }, style = MaterialTheme.typography.bodySmall, color = Color(0xFFBFC0C7), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            when {
-                folderId == null && state.loading && state.row == null -> LoadingIndicator(Modifier.align(Alignment.Center))
-                channels.isEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(if (folderId != null) R.string.tv_folder_empty else if (state.error) R.string.legacy_tv_error else R.string.legacy_tv_empty), color = Color.White)
-                    if (state.error && folderId == null) TVPill(stringResource(R.string.legacy_tv_retry)) { viewModel.retry() }
-                }
-                else -> key(scoped.profileId, folderId, state.selectedKey, library.viewMode) {
-                    val footer: @Composable () -> Unit = {
-                        if (folderId == null) {
-                            if (state.loading) LoadingIndicator()
-                            else if (state.error) TVPill(stringResource(R.string.legacy_tv_retry)) { viewModel.loadMore() }
-                            else if (state.row?.hasMore == true) TVPill(stringResource(R.string.legacy_tv_more)) { viewModel.loadMore() }
-                        }
+        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (library.viewMode == LiveTVViewMode.GUIDE) {
+                        TVPill("‹ " + stringResource(R.string.tv_previous_window)) { windowOffset = (windowOffset - 1_800_000).coerceAtLeast(-6 * 3_600_000L) }
+                        TVPill(stringResource(R.string.tv_now)) { windowOffset = 0 }
+                        TVPill(stringResource(R.string.tv_next_window) + " ›") { windowOffset = (windowOffset + 1_800_000).coerceAtMost(45 * 3_600_000L) }
                     }
-                    if (library.viewMode == LiveTVViewMode.MOSAIC) {
-                        LazyVerticalGrid(columns = GridCells.Adaptive(150.dp), modifier = Modifier.fillMaxSize().focusRestorer(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(8.dp)) {
-                            items(channels, key = { it.key }) { channel ->
-                                LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
-                                    LiveTVViewMode.MOSAIC, windowStart, windowEnd,
-                                    onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
-                                    onOptions = { channelOptions = channel },
-                                    modifier = if (channel.key == focusedKey) Modifier.focusRequester(channelFocus) else Modifier)
-                            }
-                            item(span = { GridItemSpan(maxLineSpan) }) { footer() }
+                    if (selected != null) TVPill(stringResource(R.string.tv_channel_options)) { channelOptions = selected }
+                    Text(when {
+                        saveFailed -> stringResource(R.string.tv_save_failed)
+                        epgLoading -> stringResource(R.string.tv_epg_loading)
+                        epgFailed -> stringResource(R.string.tv_epg_failed)
+                        epgPartial -> stringResource(R.string.tv_epg_partial)
+                        epgStale -> stringResource(R.string.tv_epg_stale)
+                        library.epgSources.isEmpty() -> stringResource(R.string.tv_epg_not_set)
+                        else -> stringResource(R.string.tv_channel_count, channels.size)
+                    }, style = MaterialTheme.typography.bodySmall, color = Color(0xFFBFC0C7), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                }
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    when {
+                        folderId == null && state.loading && state.row == null -> LoadingIndicator(Modifier.align(Alignment.Center))
+                        channels.isEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(stringResource(if (folderId != null) R.string.tv_folder_empty else if (state.error) R.string.legacy_tv_error else R.string.legacy_tv_empty), color = Color.White)
+                            if (state.error && folderId == null) TVPill(stringResource(R.string.legacy_tv_retry)) { viewModel.retry() }
                         }
-                    } else {
-                        Column {
-                            if (library.viewMode == LiveTVViewMode.GUIDE) {
-                                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-                                    Text(SimpleDateFormat("EEE dd/MM", Locale.getDefault()).format(Date(windowStart)),
-                                        color = Color(0xFFBFC0C7), style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(170.dp))
-                                    repeat(6) { Text(tvClock(windowStart + it * 1_800_000L), color = Color(0xFFBFC0C7),
-                                        style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f)) }
+                        else -> key(scoped.profileId, folderId, state.selectedKey, library.viewMode) {
+                            val footer: @Composable () -> Unit = {
+                                if (folderId == null) {
+                                    if (state.loading) LoadingIndicator()
+                                    else if (state.error) TVPill(stringResource(R.string.legacy_tv_retry)) { viewModel.loadMore() }
+                                    else if (state.row?.hasMore == true) TVPill(stringResource(R.string.legacy_tv_more)) { viewModel.loadMore() }
                                 }
                             }
-                            LazyColumn(Modifier.fillMaxSize().focusRestorer(), contentPadding = PaddingValues(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(channels, key = { it.key }) { channel ->
-                                    LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
-                                        library.viewMode, windowStart, windowEnd,
-                                        onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
-                                        onOptions = { channelOptions = channel },
-                                        modifier = if (channel.key == focusedKey) Modifier.focusRequester(channelFocus) else Modifier)
+                            if (library.viewMode == LiveTVViewMode.MOSAIC) {
+                                LazyVerticalGrid(columns = GridCells.Adaptive(150.dp), modifier = Modifier.fillMaxSize().focusRestorer(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    contentPadding = PaddingValues(8.dp)) {
+                                    items(channels, key = { it.key }) { channel ->
+                                        LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
+                                            LiveTVViewMode.MOSAIC, windowStart, windowEnd,
+                                            onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
+                                            onOptions = { channelOptions = channel },
+                                            modifier = if (channel.key == selected?.key) Modifier.focusRequester(channelFocus) else Modifier)
+                                    }
+                                    item(span = { GridItemSpan(maxLineSpan) }) { footer() }
                                 }
-                                item { footer() }
+                            } else {
+                                Column {
+                                    if (library.viewMode == LiveTVViewMode.GUIDE) {
+                                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                                            Text(SimpleDateFormat("EEE dd/MM", Locale.getDefault()).format(Date(windowStart)),
+                                                color = Color(0xFFBFC0C7), style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(170.dp))
+                                            repeat(6) { Text(tvClock(windowStart + it * 1_800_000L), color = Color(0xFFBFC0C7),
+                                                style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f)) }
+                                        }
+                                    }
+                                    LazyColumn(Modifier.fillMaxSize().focusRestorer(), contentPadding = PaddingValues(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(channels, key = { it.key }) { channel ->
+                                            LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
+                                                library.viewMode, windowStart, windowEnd,
+                                                onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
+                                                onOptions = { channelOptions = channel },
+                                                modifier = if (channel.key == selected?.key) Modifier.focusRequester(channelFocus) else Modifier)
+                                        }
+                                        item { footer() }
+                                    }
+                                }
                             }
                         }
                     }
                 }
+            }
+            key(scoped.profileId) {
+                val available = listOf(TVMenuEntry("channels", stringResource(R.string.tv_all_channels))) +
+                    library.folders.map { TVMenuEntry("folder:${it.id}", "${it.name} · ${it.channels.size}") } +
+                    state.sources.map { TVMenuEntry("source:${it.key}", it.label) }
+                val byKey = available.associateBy { it.key }
+                val entries = orderedTVMenuKeys(library.menuOrder, available.map { it.key }).mapNotNull { byKey[it] }
+                val activeMenuKey = folderId?.let { "folder:$it" }
+                    ?: if (allChannelsSelected) "channels" else state.selectedKey?.let { "source:$it" } ?: "channels"
+                LiveTVMenuRail(entries, activeMenuKey, menuFocus,
+                    onSelect = { key ->
+                        focusedKey = null
+                        when {
+                            key == "channels" -> { folderId = null; allChannelsSelected = true }
+                            key.startsWith("folder:") -> { folderId = key.removePrefix("folder:"); allChannelsSelected = false }
+                            key.startsWith("source:") -> {
+                                folderId = null; allChannelsSelected = false
+                                val sourceKey = key.removePrefix("source:")
+                                if (sourceKey != state.selectedKey) viewModel.select(sourceKey)
+                            }
+                        }
+                    }, onReorder = libraryViewModel::menuOrder,
+                    onChannels = { channels.isNotEmpty() && runCatching { channelFocus.requestFocus() }.getOrDefault(false) },
+                    onNewFolder = { manageFolders = true },
+                    modifier = Modifier.width((LocalConfiguration.current.screenWidthDp * 0.24f).coerceIn(180f, 240f).dp).fillMaxHeight())
             }
         }
     }

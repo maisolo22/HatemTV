@@ -46,6 +46,7 @@ class LiveTVLibraryViewModel @Inject constructor(
         }
     }
     fun mode(mode: LiveTVViewMode) = update { it.copy(viewMode = mode) }
+    fun menuOrder(keys: List<String>) = update { it.withMenuOrder(keys) }
     fun create(name: String, channel: LiveTVChannel? = null) = update { it.createFolder(name, channel) }
     fun rename(id: String, name: String) = update { it.renameFolder(id, name) }
     fun delete(id: String) = update { it.deleteFolder(id) }

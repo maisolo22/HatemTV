@@ -110,3 +110,23 @@ Tests cover priority changes, empty/expired/future schedules, cross-source ID co
 mapping, old JSON migration, ordered persistence/profile isolation, independent gzip/disk caching,
 HTTP failure fallback and shared player use. UI regression tests are compiled in CI; Mi Box
 remote validation remains necessary. Signing reuses the same cache as legacy-tv.3.
+
+## Version legacy-tv.5 — right-side categories and movable folders
+
+The channel categories and personal folders now occupy a scrollable column to the right of the
+channel list, mosaic or guide. The active category has a persistent dot/background distinct from
+remote focus. OK selects its channels. In list/guide, Right enters the category column; Left
+returns to the last focused channel (or first available channel). The main toolbar stays above.
+
+Hold OK on a category or folder to start moving it. Up/Down changes its draft position, keeping
+focus on that same item and scrolling when required. Release of the initiating long press does
+not confirm a move or select another category. A new OK press confirms the order; Back cancels.
+Horizontal navigation is held inside the menu while moving. The New folder action stays last.
+The order includes addon categories, so personal folders can be positioned between countries.
+It is persisted locally per profile and survives reopening and folder renaming. Missing addon
+categories are hidden while retaining their saved order; new entries appear at the end.
+
+Unit tests cover ordering boundaries, draft immutability, category removal/addition, JSON
+migration and persistence/profile isolation. A Compose regression covers move/confirm/cancel
+without changing the selected category; it is compiled in CI, with Mi Box remote testing pending.
+Version and signing remain compatible with the previous personal APK.

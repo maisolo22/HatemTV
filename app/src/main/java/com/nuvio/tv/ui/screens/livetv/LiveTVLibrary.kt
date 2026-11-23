@@ -28,7 +28,8 @@ data class LiveTVLibrary(
     val epgUrl: String = "",
     val epgIds: Map<String, String> = emptyMap(),
     // Null means a library saved before multiple sources were supported.
-    val epgUrls: List<String>? = null
+    val epgUrls: List<String>? = null,
+    val menuOrder: List<String> = emptyList()
 ) {
     val epgSources: List<String> get() = cleanEpgSources(epgUrls ?: listOf(epgUrl))
     fun withEpgSources(urls: List<String>): LiveTVLibrary {
@@ -45,11 +46,25 @@ data class LiveTVLibrary(
         if (clean.isBlank() || folders.any { it.id != id && it.name.equals(clean, true) }) return this
         return copy(folders = folders.map { if (it.id == id) it.copy(name = clean) else it })
     }
-    fun deleteFolder(id: String) = copy(folders = folders.filterNot { it.id == id })
+    fun deleteFolder(id: String) = copy(folders = folders.filterNot { it.id == id }, menuOrder = menuOrder.filterNot { it == "folder:$id" })
+    fun withMenuOrder(keys: List<String>) = copy(menuOrder =
+        (keys + menuOrder.filterNot { it in keys }).distinct().take(4096))
     fun toggleChannel(folderId: String, channel: LiveTVChannel): LiveTVLibrary = copy(folders = folders.map { folder ->
         if (folder.id != folderId) folder else folder.copy(channels = if (folder.channels.any { it.key == channel.key })
             folder.channels.filterNot { it.key == channel.key } else folder.channels + channel)
     })
+}
+
+internal fun orderedTVMenuKeys(saved: List<String>, available: List<String>): List<String> {
+    val current = available.toSet()
+    return (saved + available).distinct().filter { it in current }
+}
+
+internal fun moveTVMenuKey(keys: List<String>, key: String, delta: Int): List<String> {
+    val index = keys.indexOf(key)
+    if (index < 0) return keys
+    val target = (index + delta).coerceIn(0, keys.lastIndex)
+    return keys.toMutableList().apply { add(target, removeAt(index)) }
 }
 
 internal const val MAX_EPG_SOURCES = 8

@@ -46,4 +46,6 @@
     <string name="tv_epg_add">Ajouter la source</string>
     <string name="tv_epg_apply">Appliquer</string>
     <string name="tv_epg_partial">Certaines sources EPG sont indisponibles · les autres restent utilisées</string>
+    <string name="tv_menu_hint">Appui long OK : déplacer</string>
+    <string name="tv_menu_move_hint">↑ ↓ : déplacer · OK : confirmer · Retour : annuler</string>
 </resources>
