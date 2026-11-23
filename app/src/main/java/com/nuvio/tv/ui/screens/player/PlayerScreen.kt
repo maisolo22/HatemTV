@@ -211,9 +211,42 @@ fun PlayerScreen(
     onPlaybackEnded: ((nextVideoId: String?, nextSeason: Int?, nextEpisode: Int?, exitReason: PlayerExitReason?) -> Unit)? = null,
     onPlayRecommendation: (PostPlayRecommendation, manualSelection: Boolean) -> Unit = { _, _ -> },
     onOpenRecommendationDetails: (PostPlayRecommendation) -> Unit = {},
-    onOpenPartyMedia: (PartyMedia) -> Unit = {}
+    onOpenPartyMedia: (PartyMedia) -> Unit = {},
+    onOpenLiveTVGuide: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val livePlayerModel: LegacyLivePlayerViewModel = hiltViewModel()
+    val livePlayerInfo by livePlayerModel.uiState.collectAsState()
+    val explicitLiveChannel = livePlayerModel.routeChannel?.takeIf {
+        uiState.currentVideoId.isNullOrBlank() || it.id == uiState.currentVideoId
+    }
+    val isLegacyChannel = BuildConfig.FEATURE_CINEMA_UI_ENABLED &&
+        useLegacyLivePlayer(uiState.contentType, explicitLiveChannel, uiState.isLive)
+    val livePlayerChannel = remember(explicitLiveChannel, isLegacyChannel, uiState.currentVideoId,
+        uiState.title, uiState.contentName, uiState.contentType, uiState.currentStreamAddonName, uiState.logo) {
+        if (!isLegacyChannel) null else explicitLiveChannel ?: if (!uiState.currentVideoId.isNullOrBlank())
+            com.nuvio.tv.ui.screens.livetv.LiveTVChannel(uiState.currentVideoId!!, uiState.contentType.orEmpty(),
+                uiState.contentName?.takeIf { it.isNotBlank() } ?: uiState.title, "", uiState.currentStreamAddonName.orEmpty(), uiState.logo ?: livePlayerModel.routePoster)
+        else null
+    }
+    val liveWakeGate = remember { LegacyLiveWakeGate() }
+    var liveMedia by remember(uiState.currentStreamUrl, uiState.internalPlayerEngine) { mutableStateOf(PlayerMediaInfo()) }
+    LaunchedEffect(livePlayerChannel, uiState.showControls) {
+        livePlayerModel.bind(livePlayerChannel)
+        if (isLegacyChannel && uiState.showControls) livePlayerModel.refresh()
+    }
+    LaunchedEffect(isLegacyChannel, uiState.showControls, uiState.currentStreamUrl, uiState.isBuffering,
+        uiState.internalPlayerEngine, uiState.selectedAudioTrackIndex) {
+        if (isLegacyChannel && uiState.showControls) {
+            while (true) { liveMedia = viewModel.playerMediaInfo(); delay(2000) }
+        }
+    }
+    LaunchedEffect(isLegacyChannel, uiState.showPauseOverlay) {
+        if (isLegacyChannel && uiState.showPauseOverlay) {
+            viewModel.onEvent(PlayerEvent.OnDismissPauseOverlay)
+            if (!viewModel.uiState.value.showControls) viewModel.onEvent(PlayerEvent.OnToggleControls)
+        }
+    }
     val playerBadges = rememberPlayerBadges(viewModel, uiState)
     val partyState by viewModel.party.state.collectAsState()
     val partyPlayback by viewModel.party.playback.collectAsState()
@@ -368,7 +401,7 @@ fun PlayerScreen(
             dismissStreamInfoOverlay()
             if (hideControlsAfterStreamInfo) {
                 viewModel.hideControls()
-            } else if (uiState.showControls) {
+            } else if (uiState.showControls && !isLegacyChannel) {
                 restoreStreamInfoFocus = true
                 viewModel.onEvent(PlayerEvent.OnShowMoreDialog)
             }
@@ -568,6 +601,7 @@ fun PlayerScreen(
     // Request focus for key events when controls visibility or panel state changes
     LaunchedEffect(
         uiState.showControls,
+        if (isLegacyChannel) uiState.showStreamInfoOverlay else false,
         uiState.showEpisodesPanel,
         uiState.showSourcesPanel,
         uiState.showChaptersPanel,
@@ -584,7 +618,7 @@ fun PlayerScreen(
         if (shouldConfirmNextEpisodeOnEnd || postPlayRecommendationState.isVisible) return@LaunchedEffect
         if (uiState.error != null) return@LaunchedEffect
         if (uiState.showPartyPanel) return@LaunchedEffect
-        if (uiState.showControls && !uiState.showEpisodesPanel && !uiState.showSourcesPanel && !uiState.showChaptersPanel &&
+        if (uiState.showControls && !uiState.showStreamInfoOverlay && !uiState.showEpisodesPanel && !uiState.showSourcesPanel && !uiState.showChaptersPanel &&
             !uiState.showAudioOverlay && !uiState.showSubtitleOverlay &&
             !uiState.showSubtitleStylePanel && !uiState.showSubtitleDelayOverlay &&
             !uiState.showSubtitleTimingDialog &&
@@ -667,6 +701,36 @@ fun PlayerScreen(
             .focusRequester(containerFocusRequester)
             .focusable(enabled = uiState.error == null)
             .onPreviewKeyEvent { keyEvent ->
+                if (isLegacyChannel) {
+                    val native = keyEvent.nativeKeyEvent
+                    val key = when (native.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_LEFT -> LegacyLiveRemoteKey.LEFT
+                        KeyEvent.KEYCODE_DPAD_RIGHT -> LegacyLiveRemoteKey.RIGHT
+                        KeyEvent.KEYCODE_DPAD_UP -> LegacyLiveRemoteKey.UP
+                        KeyEvent.KEYCODE_DPAD_DOWN -> LegacyLiveRemoteKey.DOWN
+                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> LegacyLiveRemoteKey.CONFIRM
+                        KeyEvent.KEYCODE_INFO -> LegacyLiveRemoteKey.INFO
+                        KeyEvent.KEYCODE_MENU -> LegacyLiveRemoteKey.MENU
+                        else -> LegacyLiveRemoteKey.OTHER
+                    }
+                    val blocked = legacyLiveInputBlocked(uiState) || postPlayRecommendationState.isVisible || shouldConfirmNextEpisodeOnEnd
+                    when (liveWakeGate.key(key, native.action == KeyEvent.ACTION_DOWN, !uiState.showControls, blocked)) {
+                        LegacyLiveKeyAction.REVEAL -> {
+                            if (uiState.showPauseOverlay) viewModel.onEvent(PlayerEvent.OnDismissPauseOverlay)
+                            if (!viewModel.uiState.value.showControls) viewModel.onEvent(PlayerEvent.OnToggleControls)
+                            return@onPreviewKeyEvent true
+                        }
+                        LegacyLiveKeyAction.CONSUME -> return@onPreviewKeyEvent true
+                        LegacyLiveKeyAction.PASS -> Unit
+                    }
+                    if ((key == LegacyLiveRemoteKey.INFO || key == LegacyLiveRemoteKey.MENU) &&
+                        native.action == KeyEvent.ACTION_DOWN && native.repeatCount == 0 &&
+                        (uiState.showStreamInfoOverlay || !blocked)) {
+                        liveWakeGate.capture(key)
+                        viewModel.onEvent(if (uiState.showStreamInfoOverlay) PlayerEvent.OnDismissStreamInfo else PlayerEvent.OnShowStreamInfo)
+                        return@onPreviewKeyEvent true
+                    }
+                }
                 // Consume the confirm KEY_UP that opened the subtitle timing dialog before
                 // the newly focused "Sync" button can treat it as a second click. Preview
                 // is required: after open, focus moves into the dialog so onKeyEvent on
@@ -877,6 +941,10 @@ fun PlayerScreen(
                             }
                         }
                         return@onKeyEvent true
+                    }
+                    if (isLegacyChannel && uiState.showControls &&
+                        (keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP || keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_DOWN)) {
+                        return@onKeyEvent false
                     }
                     when (keyEvent.nativeKeyEvent.keyCode) {
                         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
@@ -1352,7 +1420,7 @@ fun PlayerScreen(
         }
 
         PauseOverlay(
-            visible = uiState.showPauseOverlay && uiState.error == null &&
+            visible = !isLegacyChannel && uiState.showPauseOverlay && uiState.error == null &&
                 !uiState.showLoadingOverlay && !postPlayRecommendationState.isVisible,
             onClose = { viewModel.onEvent(PlayerEvent.OnDismissPauseOverlay) },
             title = uiState.title,
@@ -1547,7 +1615,7 @@ fun PlayerScreen(
                 .then(playerControlsDim)
         )
 
-        val showClockOverlay = uiState.showControls &&
+        val showClockOverlay = !isLegacyChannel && uiState.showControls &&
             uiState.osdClockEnabled &&
             uiState.error == null &&
             !uiState.showLoadingOverlay &&
@@ -1587,7 +1655,26 @@ fun PlayerScreen(
             modifier = playerControlsDim
         ) {
             val context = LocalContext.current
-            PlayerControlsOverlay(
+            if (isLegacyChannel && livePlayerChannel != null) {
+                LegacyLivePlayerOverlay(
+                    channel = livePlayerChannel, info = livePlayerInfo, player = uiState, media = liveMedia,
+                    playPauseFocus = playPauseFocusRequester, streamInfoFocus = streamInfoFocusRequester,
+                    onPause = { viewModel.onEvent(PlayerEvent.OnPlayPause) },
+                    onGuide = {
+                        val openGuide = onOpenLiveTVGuide
+                        if (openGuide == null) exitPlayer()
+                        else if (!exitDispatched) { exitDispatched = true; viewModel.stopAndRelease(); openGuide() }
+                    },
+                    onAudio = { viewModel.onEvent(PlayerEvent.OnShowAudioOverlay) },
+                    onSubtitles = { viewModel.onEvent(PlayerEvent.OnShowSubtitleOverlay) },
+                    onSources = { viewModel.onEvent(PlayerEvent.OnShowSourcesPanel) },
+                    onInfo = { viewModel.onEvent(PlayerEvent.OnShowStreamInfo) },
+                    onReload = { viewModel.onEvent(PlayerEvent.OnRetry) },
+                    onAspect = { viewModel.onEvent(PlayerEvent.OnToggleAspectRatio) },
+                    onInteraction = { viewModel.scheduleHideControls(); viewModel.onUserInteraction() },
+                    onClearance = { if (latestPlayerControlsVisible) subtitleControlsClearancePx = it }
+                )
+            } else PlayerControlsOverlay(
                 uiState = uiState,
                 playerBadges = playerBadges,
                 viewModel = viewModel,

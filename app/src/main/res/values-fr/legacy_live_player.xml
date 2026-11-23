@@ -1,0 +1,18 @@
+<resources>
+    <string name="lp_live">DIRECT</string>
+    <string name="lp_until">Fin à %1$s</string>
+    <string name="lp_addon">Addon · %1$s</string>
+    <string name="lp_remaining">%1$d min restantes</string>
+    <string name="lp_buffering">Chargement…</string>
+    <string name="lp_paused">En pause</string>
+    <string name="lp_epg_loading">Chargement du programme…</string>
+    <string name="lp_epg_not_set">Configurez XMLTV dans TV en direct → EPG</string>
+    <string name="lp_pause">Pause</string>
+    <string name="lp_play">Lire</string>
+    <string name="lp_audio">Audio</string>
+    <string name="lp_subtitles">Sous-titres</string>
+    <string name="lp_sources">Sources</string>
+    <string name="lp_info">Infos</string>
+    <string name="lp_reload">Recharger</string>
+    <string name="lp_aspect">Image</string>
+</resources>

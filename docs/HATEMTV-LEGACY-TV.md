@@ -59,3 +59,29 @@ A source may not cover every channel. The artwork panel is not a live video prev
 Validation covers profile isolation and persisted library serialization, folder membership across
 providers, XMLTV times/timezones, matching ambiguity, guide geometry, gzip/cache and failed refresh.
 UI regression tests are compiled in CI; actual Mi Box remote/playback validation remains necessary.
+
+## Version legacy-tv.3 — channel player OSD
+
+The integrated channel player adapts Legacy's src/aovivo.h/c layout: channel logo/name,
+LIVE badge, actual source addon, current and next XMLTV programmes, programme progress and clock,
+plus measured video/audio format labels. Info opens the existing detailed stream information panel.
+Pause, Guide, Audio, Subtitles, Sources, Reload and Picture reuse existing player commands.
+Guide stops playback and returns to the Live TV page; this version does not add Legacy's PiP guide
+or channel zapping. The programme progress bar is informational, not a seek bar for a live stream.
+
+A hidden OSD is revealed by OK, arrow keys, Info or Menu. The revealing press, held repeats and
+release are consumed so revealing the panel does not pause or seek. Once visible, left/right
+navigate the action buttons and OK activates one. Info/Menu can open or close technical info.
+Back closes the information panel/controls before exiting. Controls reuse the three-second idle
+hide timer while playing. Hardware media/volume keys and open dialogs retain their existing roles.
+
+The originating channel's stable identity travels through stream selection into player navigation,
+including saved-state restoration. It is used to resolve the same per-profile XMLTV mapping and
+folder labels as Live TV. The source addon label follows the selected playback source. Unknown
+EPG or decoder measurements are left unavailable; advertised stream titles do not become measured
+quality badges. Films/series keep the standard player controls. External player apps supply their
+own UI and are not affected by this in-app OSD.
+
+Tests cover navigation context round trips, VOD/live selection, wake-key ownership, programme
+selection/progress, measured format labels and profile-safe EPG mappings. Actual remote navigation
+and decoder behaviour still need a Mi Box test. The CI signing cache is reused from legacy-tv.2.
