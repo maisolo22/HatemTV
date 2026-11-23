@@ -81,7 +81,7 @@ internal fun LiveTVMenuRail(
                     KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> { if (up) cancel(); true }
                     else -> false
                 }
-            } else if (native.keyCode == KeyEvent.KEYCODE_DPAD_LEFT && down) onChannels()
+            } else if (native.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && down) onChannels()
             else false
         }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(if (moving == null) R.string.tv_menu_hint else R.string.tv_menu_move_hint),

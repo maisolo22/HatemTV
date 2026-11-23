@@ -130,3 +130,12 @@ Unit tests cover ordering boundaries, draft immutability, category removal/addit
 migration and persistence/profile isolation. A Compose regression covers move/confirm/cancel
 without changing the selected category; it is compiled in CI, with Mi Box remote testing pending.
 Version and signing remain compatible with the previous personal APK.
+
+
+## Version legacy-tv.6 — categories on the left
+
+The category/folder column is now on the left of the channel list, mosaic and guide. In list/guide,
+Left enters the menu; Right returns from the menu to the last focused/first available channel.
+Long OK, Up/Down, fresh OK confirmation and Back cancellation keep their existing behaviour.
+The saved category order and all EPG/folder settings are preserved. Brand mockups are proposals
+only; this navigation correction does not apply an unselected visual identity.

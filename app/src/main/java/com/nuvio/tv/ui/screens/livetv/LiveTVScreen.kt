@@ -146,6 +146,31 @@ fun LiveTVScreen(
         }
         }
         Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            key(scoped.profileId) {
+                val available = listOf(TVMenuEntry("channels", stringResource(R.string.tv_all_channels))) +
+                    library.folders.map { TVMenuEntry("folder:${it.id}", "${it.name} · ${it.channels.size}") } +
+                    state.sources.map { TVMenuEntry("source:${it.key}", it.label) }
+                val byKey = available.associateBy { it.key }
+                val entries = orderedTVMenuKeys(library.menuOrder, available.map { it.key }).mapNotNull { byKey[it] }
+                val activeMenuKey = folderId?.let { "folder:$it" }
+                    ?: if (allChannelsSelected) "channels" else state.selectedKey?.let { "source:$it" } ?: "channels"
+                LiveTVMenuRail(entries, activeMenuKey, menuFocus,
+                    onSelect = { key ->
+                        focusedKey = null
+                        when {
+                            key == "channels" -> { folderId = null; allChannelsSelected = true }
+                            key.startsWith("folder:") -> { folderId = key.removePrefix("folder:"); allChannelsSelected = false }
+                            key.startsWith("source:") -> {
+                                folderId = null; allChannelsSelected = false
+                                val sourceKey = key.removePrefix("source:")
+                                if (sourceKey != state.selectedKey) viewModel.select(sourceKey)
+                            }
+                        }
+                    }, onReorder = libraryViewModel::menuOrder,
+                    onChannels = { channels.isNotEmpty() && runCatching { channelFocus.requestFocus() }.getOrDefault(false) },
+                    onNewFolder = { manageFolders = true },
+                    modifier = Modifier.width((LocalConfiguration.current.screenWidthDp * 0.24f).coerceIn(180f, 240f).dp).fillMaxHeight())
+            }
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (library.viewMode == LiveTVViewMode.GUIDE) {
@@ -218,31 +243,6 @@ fun LiveTVScreen(
                         }
                     }
                 }
-            }
-            key(scoped.profileId) {
-                val available = listOf(TVMenuEntry("channels", stringResource(R.string.tv_all_channels))) +
-                    library.folders.map { TVMenuEntry("folder:${it.id}", "${it.name} · ${it.channels.size}") } +
-                    state.sources.map { TVMenuEntry("source:${it.key}", it.label) }
-                val byKey = available.associateBy { it.key }
-                val entries = orderedTVMenuKeys(library.menuOrder, available.map { it.key }).mapNotNull { byKey[it] }
-                val activeMenuKey = folderId?.let { "folder:$it" }
-                    ?: if (allChannelsSelected) "channels" else state.selectedKey?.let { "source:$it" } ?: "channels"
-                LiveTVMenuRail(entries, activeMenuKey, menuFocus,
-                    onSelect = { key ->
-                        focusedKey = null
-                        when {
-                            key == "channels" -> { folderId = null; allChannelsSelected = true }
-                            key.startsWith("folder:") -> { folderId = key.removePrefix("folder:"); allChannelsSelected = false }
-                            key.startsWith("source:") -> {
-                                folderId = null; allChannelsSelected = false
-                                val sourceKey = key.removePrefix("source:")
-                                if (sourceKey != state.selectedKey) viewModel.select(sourceKey)
-                            }
-                        }
-                    }, onReorder = libraryViewModel::menuOrder,
-                    onChannels = { channels.isNotEmpty() && runCatching { channelFocus.requestFocus() }.getOrDefault(false) },
-                    onNewFolder = { manageFolders = true },
-                    modifier = Modifier.width((LocalConfiguration.current.screenWidthDp * 0.24f).coerceIn(180f, 240f).dp).fillMaxHeight())
             }
         }
     }

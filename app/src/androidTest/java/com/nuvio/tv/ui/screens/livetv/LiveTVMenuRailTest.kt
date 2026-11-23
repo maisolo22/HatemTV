@@ -21,16 +21,19 @@ class LiveTVMenuRailTest {
     @Test fun movingKeepsCategorySelectionAndCommitsOnlyWithFreshOk() {
         var saved: List<String>? = null
         var selected = "fr"
+        var returnsToChannels = 0
         compose.setContent {
             var entries by remember { mutableStateOf(initial) }
             NuvioTheme {
                 LiveTVMenuRail(entries, selected, remember { FocusRequester() }, onSelect = { selected = it },
                     onReorder = { keys -> saved = keys; entries = keys.map { key -> initial.first { it.key == key } } },
-                    onChannels = { false }, onNewFolder = {}, modifier = Modifier.width(240.dp).height(440.dp))
+                    onChannels = { returnsToChannels++; true }, onNewFolder = {}, modifier = Modifier.width(240.dp).height(440.dp))
             }
         }
         val sport = compose.onNodeWithText("Sport")
         sport.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        sport.performKeyInput { pressKey(Key.DirectionRight) }
+        compose.runOnIdle { assertEquals(1, returnsToChannels) }
         sport.performSemanticsAction(SemanticsActions.OnLongClick) { it() }
         sport.performKeyInput { pressKey(Key.DirectionDown) }
         compose.runOnIdle { assertNull(saved); assertEquals("fr", selected) }
