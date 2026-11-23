@@ -46,8 +46,8 @@ data class LiveTVEpg(
             for (guide in sourceGuides) {
                 // IDs differ between publishers. Honour an override where it exists;
                 // otherwise let this source use its normal unambiguous ID/name matching.
-                val override = explicitId?.takeIf { id -> guide.channels.any { it.id == id } }
-                val schedule = guide.schedule(channel, override, now)
+                val sourceId = explicitId?.takeIf { id -> guide.channels.any { it.id == id } }
+                val schedule = guide.schedule(channel, sourceId, now)
                 if (schedule.any { it.end > now }) return schedule
             }
             return emptyList()
