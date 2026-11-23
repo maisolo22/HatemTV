@@ -72,6 +72,9 @@ fun LiveTVScreen(
     var allChannelsSelected by rememberSaveable(scoped.profileId) { mutableStateOf(false) }
     var focusedKey by rememberSaveable(scoped.profileId) { mutableStateOf<String?>(null) }
     var windowOffset by rememberSaveable(scoped.profileId) { mutableLongStateOf(0L) }
+    var query by rememberSaveable(scoped.profileId) { mutableStateOf("") }
+    var searchDialog by remember(scoped.profileId) { mutableStateOf(false) }
+    val searchFocus = remember { FocusRequester() }
     var manageFolders by remember(scoped.profileId) { mutableStateOf(false) }
     var epgDialog by remember(scoped.profileId) { mutableStateOf(false) }
     var channelOptions by remember(scoped.profileId) { mutableStateOf<LiveTVChannel?>(null) }
@@ -102,7 +105,15 @@ fun LiveTVScreen(
     LaunchedEffect(scoped.profileId, channels, library.folders) {
         libraryViewModel.targets(scoped.profileId, channels + library.folders.flatMap { it.channels }.filter { it.addonBaseUrl in activeBases })
     }
-    val selected = channels.firstOrNull { it.key == focusedKey } ?: channels.firstOrNull()
+    val matchingChannels = remember(channels, query) { channels.filter { channelStartsWith(it.name, query) } }
+    // Walk paginated catalogues while searching, including pages after an empty match.
+    LaunchedEffect(query, folderId, state.selectedKey, state.row, state.loading, state.error) {
+        if (query.isNotBlank() && folderId == null && !state.loading && !state.error && state.row?.hasMore == true) {
+            delay(300)
+            viewModel.loadMore()
+        }
+    }
+    val selected = matchingChannels.firstOrNull { it.key == focusedKey } ?: matchingChannels.firstOrNull()
     val schedule = selected?.let { epg.schedule(it, library.epgIds[it.key]) }.orEmpty()
     val current = schedule.firstOrNull { it.start <= now && it.end > now }
     val next = schedule.firstOrNull { it.start > now }
@@ -115,6 +126,7 @@ fun LiveTVScreen(
             LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(4.dp)) {
                 item { TVPill(stringResource(R.string.tv_list), library.viewMode == LiveTVViewMode.LIST,
                     Modifier.focusRequester(contentFocus).focusRequester(firstAction)) { libraryViewModel.mode(LiveTVViewMode.LIST) } }
+                item { TVPill(stringResource(R.string.tv_search), query.isNotBlank(), Modifier.focusRequester(searchFocus)) { searchDialog = true } }
                 item { TVPill(stringResource(R.string.tv_mosaic), library.viewMode == LiveTVViewMode.MOSAIC) { libraryViewModel.mode(LiveTVViewMode.MOSAIC) } }
                 item { TVPill(stringResource(R.string.tv_guide), library.viewMode == LiveTVViewMode.GUIDE) { libraryViewModel.mode(LiveTVViewMode.GUIDE) } }
                 item { TVPill(stringResource(R.string.tv_details), showInformation) { showInformation = !showInformation } }
@@ -167,11 +179,17 @@ fun LiveTVScreen(
                             }
                         }
                     }, onReorder = libraryViewModel::menuOrder,
-                    onChannels = { channels.isNotEmpty() && runCatching { channelFocus.requestFocus() }.getOrDefault(false) },
+                    onChannels = { matchingChannels.isNotEmpty() && runCatching { channelFocus.requestFocus() }.getOrDefault(false) },
                     onNewFolder = { manageFolders = true },
                     modifier = Modifier.width((LocalConfiguration.current.screenWidthDp * 0.24f).coerceIn(180f, 240f).dp).fillMaxHeight())
             }
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (query.isNotBlank()) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.tv_search_active, query, matchingChannels.size),
+                        style = MaterialTheme.typography.bodyMedium, color = Color.White,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    TVPill(stringResource(R.string.tv_search_clear)) { query = ""; runCatching { searchFocus.requestFocus() } }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (library.viewMode == LiveTVViewMode.GUIDE) {
                         TVPill("‹ " + stringResource(R.string.tv_previous_window)) { windowOffset = (windowOffset - 1_800_000).coerceAtLeast(-6 * 3_600_000L) }
@@ -192,11 +210,12 @@ fun LiveTVScreen(
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     when {
                         folderId == null && state.loading && state.row == null -> LoadingIndicator(Modifier.align(Alignment.Center))
-                        channels.isEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(stringResource(if (folderId != null) R.string.tv_folder_empty else if (state.error) R.string.legacy_tv_error else R.string.legacy_tv_empty), color = Color.White)
+                        matchingChannels.isEmpty() && query.isNotBlank() && state.loading && folderId == null -> LoadingIndicator(Modifier.align(Alignment.Center))
+                        matchingChannels.isEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(stringResource(if (query.isNotBlank()) R.string.tv_search_empty else if (folderId != null) R.string.tv_folder_empty else if (state.error) R.string.legacy_tv_error else R.string.legacy_tv_empty), color = Color.White)
                             if (state.error && folderId == null) TVPill(stringResource(R.string.legacy_tv_retry)) { viewModel.retry() }
                         }
-                        else -> key(scoped.profileId, folderId, state.selectedKey, library.viewMode) {
+                        else -> key(scoped.profileId, folderId, state.selectedKey, library.viewMode, query) {
                             val footer: @Composable () -> Unit = {
                                 if (folderId == null) {
                                     if (state.loading) LoadingIndicator()
@@ -208,7 +227,7 @@ fun LiveTVScreen(
                                 LazyVerticalGrid(columns = GridCells.Adaptive(150.dp), modifier = Modifier.fillMaxSize().focusRestorer(),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
                                     contentPadding = PaddingValues(8.dp)) {
-                                    items(channels, key = { it.key }) { channel ->
+                                    items(matchingChannels, key = { it.key }) { channel ->
                                         LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
                                             LiveTVViewMode.MOSAIC, windowStart, windowEnd,
                                             onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
@@ -229,7 +248,7 @@ fun LiveTVScreen(
                                     }
                                     LazyColumn(Modifier.fillMaxSize().focusRestorer(), contentPadding = PaddingValues(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        items(channels, key = { it.key }) { channel ->
+                                        items(matchingChannels, key = { it.key }) { channel ->
                                             LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
                                                 library.viewMode, windowStart, windowEnd,
                                                 onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
@@ -246,6 +265,10 @@ fun LiveTVScreen(
             }
         }
     }
+    if (searchDialog) LiveTVSearchDialog(query, onQueryChange = { query = it; focusedKey = null }, onDismiss = {
+        searchDialog = false
+        runCatching { searchFocus.requestFocus() }
+    })
     if (manageFolders) LiveTVFoldersDialog(library, libraryViewModel, onDismiss = { manageFolders = false })
     if (epgDialog) LiveTVEpgDialog(library.epgSources, onSave = { libraryViewModel.epgSources(it); epgDialog = false },
         onRefresh = { libraryViewModel.refreshEpg(true); epgDialog = false }, onDismiss = { epgDialog = false })

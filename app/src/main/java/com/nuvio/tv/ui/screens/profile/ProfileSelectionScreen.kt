@@ -2,7 +2,7 @@ package com.nuvio.tv.ui.screens.profile
 
 import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.ui.components.HatemAuthorCredit
-import com.nuvio.tv.ui.components.HatemCinemaBackground
+import com.nuvio.tv.ui.components.HatemHistoryBackground
 import com.nuvio.tv.ui.components.HatemProfileAvatar
 import com.nuvio.tv.ui.components.BrandWordmark
 import androidx.compose.foundation.layout.absolutePadding
@@ -223,6 +223,7 @@ fun ProfileSelectionScreen(
     val context = LocalContext.current
     val profiles by viewModel.profiles.collectAsState()
     val activeProfileId by viewModel.activeProfileId.collectAsState()
+    val historyPosters by viewModel.historyPosters.collectAsState()
     val avatarCatalog by viewModel.avatarCatalog.collectAsState()
     val profileBackgroundCatalog by viewModel.profileBackgroundCatalog.collectAsState()
     val hasProfileBackgroundAccess by viewModel.hasProfileBackgroundAccess.collectAsState()
@@ -372,9 +373,14 @@ fun ProfileSelectionScreen(
             onProfileThemeFocused?.invoke(theme)
         }
 
+        LaunchedEffect(backgroundProfile?.id) {
+            viewModel.focusHistoryProfile(backgroundProfile?.id)
+        }
+
         ProfileSelectionBackground(
             focusedAvatarColor = overlayProfileColor ?: focusedAvatarColor,
-            profileBackground = profileBackground
+            profileBackground = profileBackground,
+            historyPosters = historyPosters
         )
 
         if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
@@ -832,10 +838,11 @@ fun ProfileSelectionScreen(
 @Composable
 private fun ProfileSelectionBackground(
     focusedAvatarColor: Color,
-    profileBackground: ProfileBackgroundArtwork?
+    profileBackground: ProfileBackgroundArtwork?,
+    historyPosters: List<String>
 ) {
-    if (BuildConfig.FEATURE_CINEMA_UI_ENABLED && profileBackground == null) {
-        HatemCinemaBackground()
+    if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+        HatemHistoryBackground(historyPosters)
         return
     }
     val animatedAvatarColor by animateColorAsState(

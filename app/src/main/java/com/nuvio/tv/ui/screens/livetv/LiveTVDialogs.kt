@@ -137,3 +137,19 @@ internal fun LiveTVEpgDialog(urls: List<String>, onSave: (List<String>) -> Unit,
         Text(stringResource(R.string.tv_epg_matching_hint), style = MaterialTheme.typography.bodySmall)
     }
 }
+
+@Composable
+internal fun LiveTVSearchDialog(query: String, onQueryChange: (String) -> Unit, onDismiss: () -> Unit) {
+    val input = remember { FocusRequester() }
+    LaunchedEffect(Unit) { input.requestFocus() }
+    NuvioDialog(onDismiss, title = stringResource(R.string.tv_search),
+        subtitle = stringResource(R.string.tv_search_hint), actions = {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onDismiss) { Text(stringResource(R.string.tv_search_results)) }
+                Button(onClick = { onQueryChange(""); input.requestFocus() }) { Text(stringResource(R.string.tv_search_clear)) }
+            }
+        }) {
+        NuvioTextField(query, { onQueryChange(it.take(80)) }, Modifier.fillMaxWidth(),
+            stringResource(R.string.tv_search_placeholder), focusRequester = input)
+    }
+}

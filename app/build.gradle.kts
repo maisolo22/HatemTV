@@ -186,8 +186,8 @@ android {
         create("full") {
             dimension = "distribution"
             applicationId = "com.maisolo.hatemtv"
-            versionCode = 1085
-            versionNameSuffix = "-legacy-tv.7"
+            versionCode = 1086
+            versionNameSuffix = "-legacy-tv.8"
             buildConfigField("boolean", "FEATURE_CINEMA_UI_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
