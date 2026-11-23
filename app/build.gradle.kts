@@ -218,6 +218,10 @@ android {
     }
 
     signingConfigs {
+        getByName("debug") {
+            val personalDebugKey = rootProject.file(".hatemtv-signing/debug.keystore")
+            if (personalDebugKey.isFile) storeFile = personalDebugKey
+        }
         create("release") {
             keyAlias = releaseKeyAliasValue
             keyPassword = releaseKeyPasswordValue

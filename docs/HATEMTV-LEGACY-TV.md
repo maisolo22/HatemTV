@@ -20,15 +20,16 @@ Exact manifest content types are preserved for addon requests. Stream headers an
 continue to use HatemTV's existing addon and player engines. Addon installations and enablement are shared
 with Home and refreshed when they change. No third-party addon or credential is installed automatically.
 
-This version provides addon channel browsing and playback. Legacy's EPG timeline, M3U/XMLTV and
-Xtream import are not included. Descriptions are displayed as returned by the catalog; they are not
+The initial legacy-tv.1 build provided addon channel browsing and playback. EPG was added in
+legacy-tv.2 below. M3U playlists and Xtream import are not included. Descriptions are displayed as returned by the catalog; they are not
 presented as verified current TV programme schedules. Playback still depends on an installed addon
 returning a working stream. Hardware remote navigation and streams must be validated on a Mi Box.
 
 CI tests source detection, raw types, pagination, source cancellation, addon disablement and retry,
 along with the existing home focus/discovery tests. It also compiles Android UI regression tests and
-builds a universal APK. These CI APKs use generated debug signing keys; updating from a different
-build may require reinstalling after backing up settings. For durable distribution, supply a private release keystore.
+builds a universal APK. These CI APKs use debug signing keys. From legacy-tv.2 the workflow creates an explicit key file
+and reuses it through an Actions cache (best effort; caches can expire). Updating from older builds
+may require reinstalling after backing up settings. For durable distribution, supply a private release keystore.
 
 ## Version legacy-tv.2
 

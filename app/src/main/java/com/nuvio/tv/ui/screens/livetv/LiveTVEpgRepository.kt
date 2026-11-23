@@ -37,7 +37,7 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
         epgIds: Map<String, String> = emptyMap()): LiveTVEpgResult = withContext(Dispatchers.IO) {
         val wantedNames = channels.takeIf { it.isNotEmpty() }?.map { epgName(it.name) }?.toSet()
         val wantedIds = channels.flatMap { listOfNotNull(it.id, it.id.substringAfterLast(':'), epgIds[it.key]) }.toSet()
-        val cacheKey = rawUrl + wantedNames.orEmpty().sorted().joinToString("|") + wantedIds.sorted().joinToString("|")
+        val cacheKey = rawUrl + "\u0000" + wantedNames.orEmpty().sorted().joinToString("\u0000") + "\u0001" + wantedIds.sorted().joinToString("\u0000")
         val url = rawUrl.toHttpUrlOrNull() ?: throw IOException("Invalid XMLTV URL")
         mutex.withLock {
             val now = System.currentTimeMillis()

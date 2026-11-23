@@ -48,6 +48,19 @@ class LiveTVGuideTest {
         assertNull(ambiguous.channelId(channel(), "invalid"))
     }
 
+    @Test fun `streaming EPG retains only requested channel schedules`() {
+        val xml = """<tv>
+            <channel id="wanted"><display-name>TF1</display-name></channel>
+            <channel id="other"><display-name>Other TV</display-name></channel>
+            <programme channel="wanted" start="20261123060000 +0000" stop="20261123070000 +0000"><title>Wanted</title></programme>
+            <programme channel="other" start="20261123060000 +0000" stop="20261123070000 +0000"><title>Other</title></programme>
+            </tv>"""
+        val filtered = XmlTVParser.parse(ByteArrayInputStream(xml.toByteArray()), now, setOf("tf1"))
+        assertEquals(setOf("wanted"), filtered.programmes.keys)
+        val mapped = XmlTVParser.parse(ByteArrayInputStream(xml.toByteArray()), now, emptySet(), setOf("other"))
+        assertEquals(setOf("other"), mapped.programmes.keys)
+    }
+
     @Test fun `guide clips events to the window and preserves schedule gaps`() {
         val slots = tvTimelineSlots(listOf(TVProgramme("Earlier", -10, 25), TVProgramme("Later", 50, 110)), 0, 100)
         assertEquals(0f, slots[0].offset)

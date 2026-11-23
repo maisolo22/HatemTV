@@ -18,6 +18,19 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
+      - uses: actions/cache@v4
+        with:
+          path: .hatemtv-signing/debug.keystore
+          key: hatemtv-personal-debug-signing-v2
+      - name: Prepare reusable test signing key
+        run: |
+          mkdir -p .hatemtv-signing
+          if [ ! -s .hatemtv-signing/debug.keystore ]; then
+            keytool -genkeypair -keystore .hatemtv-signing/debug.keystore \
+              -storetype JKS -storepass android -keypass android \
+              -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=HatemTV Debug,O=HatemTV,C=TN"
+          fi
       - name: Test discovery and home focus
         run: >-
           ./gradlew :app:testFullDebugUnitTest

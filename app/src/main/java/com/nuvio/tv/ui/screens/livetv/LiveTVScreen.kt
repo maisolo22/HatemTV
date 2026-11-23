@@ -69,10 +69,19 @@ fun LiveTVScreen(
     var manageFolders by remember(scoped.profileId) { mutableStateOf(false) }
     var epgDialog by remember(scoped.profileId) { mutableStateOf(false) }
     var channelOptions by remember(scoped.profileId) { mutableStateOf<LiveTVChannel?>(null) }
+    var returnToChannel by rememberSaveable(scoped.profileId) { mutableStateOf(false) }
+    val channelFocus = remember { FocusRequester() }
     val firstAction = remember { FocusRequester() }
     val sidebarExpanded = LocalSidebarExpanded.current
     val contentFocus = LocalContentFocusRequester.current
-    LaunchedEffect(Unit) { if (!sidebarExpanded) runCatching { firstAction.requestFocus() } }
+    LaunchedEffect(scoped.profileId) {
+        if (scoped.profileId != 0 && !sidebarExpanded) {
+            repeat(2) { withFrameNanos { } }
+            val target = if (returnToChannel) channelFocus else firstAction
+            if (runCatching { target.requestFocus() }.isFailure) runCatching { firstAction.requestFocus() }
+            returnToChannel = false
+        }
+    }
     LaunchedEffect(library.folders) { if (folderId != null && library.folders.none { it.id == folderId }) folderId = null }
     val now by produceState(System.currentTimeMillis()) { while (true) { delay(30_000); value = System.currentTimeMillis() } }
     val windowStart = now / 1_800_000L * 1_800_000L + windowOffset
@@ -158,7 +167,7 @@ fun LiveTVScreen(
             when {
                 folderId == null && state.loading && state.row == null -> LoadingIndicator(Modifier.align(Alignment.Center))
                 channels.isEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(if (folderId == null) R.string.legacy_tv_empty else R.string.tv_folder_empty), color = Color.White)
+                    Text(stringResource(if (folderId != null) R.string.tv_folder_empty else if (state.error) R.string.legacy_tv_error else R.string.legacy_tv_empty), color = Color.White)
                     if (state.error && folderId == null) TVPill(stringResource(R.string.legacy_tv_retry)) { viewModel.retry() }
                 }
                 else -> key(scoped.profileId, folderId, state.selectedKey, library.viewMode) {
@@ -176,14 +185,18 @@ fun LiveTVScreen(
                             items(channels, key = { it.key }) { channel ->
                                 LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
                                     LiveTVViewMode.MOSAIC, windowStart, windowEnd,
-                                    onFocus = { focusedKey = channel.key }, onPlay = { onPlay(channel) }, onOptions = { channelOptions = channel })
+                                    onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
+                                    onOptions = { channelOptions = channel },
+                                    modifier = if (channel.key == focusedKey) Modifier.focusRequester(channelFocus) else Modifier)
                             }
                             item(span = { GridItemSpan(maxLineSpan) }) { footer() }
                         }
                     } else {
                         Column {
                             if (library.viewMode == LiveTVViewMode.GUIDE) {
-                                Row(Modifier.fillMaxWidth().padding(start = 178.dp, end = 8.dp)) {
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                                    Text(SimpleDateFormat("EEE dd/MM", Locale.getDefault()).format(Date(windowStart)),
+                                        color = Color(0xFFBFC0C7), style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(170.dp))
                                     repeat(6) { Text(tvClock(windowStart + it * 1_800_000L), color = Color(0xFFBFC0C7),
                                         style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f)) }
                                 }
@@ -193,7 +206,9 @@ fun LiveTVScreen(
                                 items(channels, key = { it.key }) { channel ->
                                     LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
                                         library.viewMode, windowStart, windowEnd,
-                                        onFocus = { focusedKey = channel.key }, onPlay = { onPlay(channel) }, onOptions = { channelOptions = channel })
+                                        onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
+                                        onOptions = { channelOptions = channel },
+                                        modifier = if (channel.key == focusedKey) Modifier.focusRequester(channelFocus) else Modifier)
                                 }
                                 item { footer() }
                             }
@@ -214,7 +229,7 @@ fun LiveTVScreen(
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 internal fun TVPill(label: String, selected: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Button(onClick, modifier.height(32.dp), shape = ButtonDefaults.shape(shape = RoundedCornerShape(50)),
+    Button(onClick, modifier.height(36.dp), shape = ButtonDefaults.shape(shape = RoundedCornerShape(50)),
         scale = ButtonDefaults.scale(focusedScale = 1f),
         colors = ButtonDefaults.colors(containerColor = if (selected) Color(0xFF434348) else Color(0xFF222225),
             contentColor = Color.White, focusedContainerColor = Color.White, focusedContentColor = Color(0xFF141416))) {
@@ -236,12 +251,12 @@ internal fun TVProgrammeProgress(programme: TVProgramme, now: Long) {
 internal fun LegacyTVChannelCard(
     channel: LiveTVChannel, programmes: List<TVProgramme>, now: Long, mode: LiveTVViewMode,
     windowStart: Long, windowEnd: Long,
-    onFocus: () -> Unit, onPlay: () -> Unit, onOptions: () -> Unit
+    onFocus: () -> Unit, onPlay: () -> Unit, onOptions: () -> Unit, modifier: Modifier = Modifier
 ) {
     val current = programmes.firstOrNull { it.start <= now && it.end > now }
     val next = programmes.firstOrNull { it.start > now }
     Card(onClick = onPlay, onLongClick = onOptions,
-        modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.hasFocus) onFocus() },
+        modifier = modifier.fillMaxWidth().onFocusChanged { if (it.hasFocus) onFocus() },
         colors = CardDefaults.colors(containerColor = Color(0xFF202024), contentColor = Color.White,
             focusedContainerColor = Color.White, focusedContentColor = Color(0xFF151518)),
         shape = CardDefaults.shape(shape = RoundedCornerShape(14.dp)), scale = CardDefaults.scale(focusedScale = 1f)) {
