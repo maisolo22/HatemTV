@@ -20,6 +20,7 @@ class LiveTVLibraryViewModel @Inject constructor(
     val epgLoading = MutableStateFlow(false)
     val epgFailed = MutableStateFlow(false)
     val epgStale = MutableStateFlow(false)
+    val epgPartial = MutableStateFlow(false)
     val saveFailed = MutableStateFlow(false)
     private var epgJob: Job? = null
     private var targets = emptyList<LiveTVChannel>()
@@ -28,7 +29,7 @@ class LiveTVLibraryViewModel @Inject constructor(
         viewModelScope.launch {
             store.data.collect { value ->
                 val profileChanged = value.profileId != state.value.profileId
-                val reload = profileChanged || value.library.epgUrl != state.value.library.epgUrl || value.library.epgIds != state.value.library.epgIds
+                val reload = profileChanged || value.library.epgSources != state.value.library.epgSources || value.library.epgIds != state.value.library.epgIds
                 if (profileChanged) targets = emptyList()
                 state.value = value
                 if (reload) { generation++; epgJob?.cancel(); epg.value = LiveTVEpg(); refreshEpg() }
@@ -49,7 +50,7 @@ class LiveTVLibraryViewModel @Inject constructor(
     fun rename(id: String, name: String) = update { it.renameFolder(id, name) }
     fun delete(id: String) = update { it.deleteFolder(id) }
     fun toggle(folderId: String, channel: LiveTVChannel) = update { it.toggleChannel(folderId, channel) }
-    fun epgSource(url: String) = update { it.copy(epgUrl = url.trim()) }
+    fun epgSources(urls: List<String>) = update { it.withEpgSources(urls) }
     fun channelEpgId(channel: LiveTVChannel, id: String) = update {
         it.copy(epgIds = it.epgIds.toMutableMap().apply { if (id.isBlank()) remove(channel.key) else put(channel.key, id.trim()) })
     }
@@ -62,15 +63,15 @@ class LiveTVLibraryViewModel @Inject constructor(
         generation++
         val token = generation
         epgJob?.cancel()
-        val url = state.value.library.epgUrl
-        epgFailed.value = false; epgLoading.value = url.isNotBlank() && targets.isNotEmpty(); epgStale.value = false
-        if (url.isBlank() || targets.isEmpty()) return
+        val urls = state.value.library.epgSources
+        epgFailed.value = false; epgLoading.value = urls.isNotEmpty() && targets.isNotEmpty(); epgStale.value = false; epgPartial.value = false
+        if (urls.isEmpty() || targets.isEmpty()) return
         val channels = targets
         val ids = state.value.library.epgIds
         epgJob = viewModelScope.launch {
             try {
-                val result = epgRepository.load(url, force, channels, ids)
-                if (token == generation) { epg.value = result.data; epgStale.value = result.stale }
+                val result = epgRepository.loadSources(urls, force, channels, ids)
+                if (token == generation) { epg.value = result.data; epgStale.value = result.stale; epgPartial.value = result.failedSources > 0 }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { if (token == generation) epgFailed.value = true }
             finally { if (token == generation) epgLoading.value = false }

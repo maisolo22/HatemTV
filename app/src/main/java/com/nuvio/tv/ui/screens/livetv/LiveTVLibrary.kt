@@ -26,8 +26,15 @@ data class LiveTVLibrary(
     val viewMode: LiveTVViewMode = LiveTVViewMode.LIST,
     val folders: List<LiveTVFolder> = emptyList(),
     val epgUrl: String = "",
-    val epgIds: Map<String, String> = emptyMap()
+    val epgIds: Map<String, String> = emptyMap(),
+    // Null means a library saved before multiple sources were supported.
+    val epgUrls: List<String>? = null
 ) {
+    val epgSources: List<String> get() = cleanEpgSources(epgUrls ?: listOf(epgUrl))
+    fun withEpgSources(urls: List<String>): LiveTVLibrary {
+        val clean = cleanEpgSources(urls)
+        return copy(epgUrl = clean.firstOrNull().orEmpty(), epgUrls = clean)
+    }
     fun createFolder(name: String, channel: LiveTVChannel? = null, id: String = UUID.randomUUID().toString()): LiveTVLibrary {
         val clean = name.trim().take(60)
         if (clean.isBlank() || folders.any { it.name.equals(clean, true) }) return this
@@ -44,3 +51,7 @@ data class LiveTVLibrary(
             folder.channels.filterNot { it.key == channel.key } else folder.channels + channel)
     })
 }
+
+internal const val MAX_EPG_SOURCES = 8
+internal fun cleanEpgSources(urls: List<String>): List<String> =
+    urls.map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(MAX_EPG_SOURCES)

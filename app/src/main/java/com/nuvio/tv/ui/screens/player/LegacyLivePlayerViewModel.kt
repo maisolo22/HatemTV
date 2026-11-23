@@ -48,10 +48,10 @@ class LegacyLivePlayerViewModel @Inject constructor(
                     val library = scoped.library
                     val folders = library.folders.filter { folder -> folder.channels.any { it.key == value.key } }.map { it.name }
                     state.value = LegacyLivePlayerInfo(value, folders = folders,
-                        configured = library.epgUrl.isNotBlank(), loading = library.epgUrl.isNotBlank())
-                    if (library.epgUrl.isBlank()) return@collectLatest
+                        configured = library.epgSources.isNotEmpty(), loading = library.epgSources.isNotEmpty())
+                    if (library.epgSources.isEmpty()) return@collectLatest
                     try {
-                        val result = epgRepository.load(library.epgUrl, channels = listOf(value), epgIds = library.epgIds)
+                        val result = epgRepository.loadSources(library.epgSources, channels = listOf(value), epgIds = library.epgIds)
                         state.value = state.value.copy(programmes = result.data.schedule(value, library.epgIds[value.key]),
                             loading = false, stale = result.stale)
                     } catch (e: CancellationException) { throw e }

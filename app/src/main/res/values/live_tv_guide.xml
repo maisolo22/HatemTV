@@ -32,13 +32,18 @@
     <string name="tv_delete_confirm">Delete folder “%1$s”? Channels remain available in their addons.</string>
     <string name="tv_channel_folder_hint">Select folders to add or remove this channel. Each change is saved immediately.</string>
     <string name="tv_folder_create_add">Create folder and add this channel</string>
-    <string name="tv_epg_id_hint">Optional: exact channel ID from XMLTV. Leave blank for automatic matching by name.</string>
+    <string name="tv_epg_id_hint">Optional: exact XMLTV channel ID. If a source does not contain this ID, automatic matching is used for that source. Leave blank for automatic matching.</string>
     <string name="tv_epg_id">XMLTV channel ID</string>
-    <string name="tv_epg_source_hint">Choose a preset or enter your XMLTV / XMLTV.gz URL. Schedules depend on this source and are cached for 12 hours.</string>
+    <string name="tv_epg_source_hint">Add up to 8 XMLTV / XMLTV.gz sources. Each channel uses the first source with current or upcoming programmes, then falls back to the next. Each source is cached for 12 hours.</string>
     <string name="tv_france">France</string>
     <string name="tv_italy">Italy</string>
     <string name="tv_disable">Disable</string>
     <string name="tv_epg_url">XMLTV URL</string>
     <string name="tv_epg_matching_hint">Automatic matching uses the channel name or ID. For an unmatched channel, use Channel options to enter its exact XMLTV ID. No schedule is fabricated.</string>
     <string name="tv_details">Details</string>
+    <string name="tv_epg_up">Move up</string>
+    <string name="tv_epg_down">Move down</string>
+    <string name="tv_epg_add">Add source</string>
+    <string name="tv_epg_apply">Apply</string>
+    <string name="tv_epg_partial">Some EPG sources are unavailable · remaining sources are still used</string>
 </resources>

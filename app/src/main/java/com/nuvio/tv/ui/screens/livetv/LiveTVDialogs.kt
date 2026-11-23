@@ -86,25 +86,54 @@ internal fun LiveTVChannelDialog(channel: LiveTVChannel, library: LiveTVLibrary,
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-internal fun LiveTVEpgDialog(url: String, onSave: (String) -> Unit, onRefresh: () -> Unit, onDismiss: () -> Unit) {
-    var draft by remember { mutableStateOf(url) }
+internal fun LiveTVEpgDialog(urls: List<String>, onSave: (List<String>) -> Unit, onRefresh: () -> Unit, onDismiss: () -> Unit) {
+    var sources by remember { mutableStateOf(urls) }
+    var draft by remember { mutableStateOf("") }
+    var editing by remember { mutableStateOf<Int?>(null) }
     val close = remember { FocusRequester() }
     LaunchedEffect(Unit) { close.requestFocus() }
-    val valid = draft.isBlank() || draft.trim().toHttpUrlOrNull() != null
+    val clean = draft.trim()
+    val valid = clean.isNotEmpty() && clean.toHttpUrlOrNull() != null &&
+        sources.withIndex().none { it.index != editing && it.value == clean } &&
+        (editing != null || sources.size < MAX_EPG_SOURCES)
+    fun addPreset(url: String) { sources = cleanEpgSources(sources + url) }
+    fun move(index: Int, delta: Int) {
+        sources = sources.toMutableList().apply { add(index + delta, removeAt(index)) }
+        editing = null; draft = ""
+    }
     NuvioDialog(onDismiss, title = stringResource(R.string.tv_epg), actions = {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onDismiss, Modifier.focusRequester(close)) { Text(stringResource(R.string.tv_cancel)) }
-            Button(onClick = { onSave(draft.trim()) }, enabled = valid) { Text(stringResource(R.string.tv_save)) }
-            Button(onClick = onRefresh, enabled = url.isNotBlank()) { Text(stringResource(R.string.tv_refresh)) }
+            Button(onClick = { onSave(sources) }, enabled = draft.isBlank()) { Text(stringResource(R.string.tv_save)) }
+            Button(onClick = onRefresh, enabled = urls.isNotEmpty() && sources == urls && draft.isBlank()) { Text(stringResource(R.string.tv_refresh)) }
         }
     }) {
         Text(stringResource(R.string.tv_epg_source_hint), style = MaterialTheme.typography.bodyMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = { draft = "https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz" }) { Text(stringResource(R.string.tv_france)) }
-            Button(onClick = { draft = "https://epgshare01.online/epgshare01/epg_ripper_IT1.xml.gz" }) { Text(stringResource(R.string.tv_italy)) }
-            Button(onClick = { draft = "" }) { Text(stringResource(R.string.tv_disable)) }
+            Button(onClick = { addPreset("https://xmltvfr.fr/xmltv/xmltv_fr.xml.gz") }, enabled = sources.size < MAX_EPG_SOURCES) { Text(stringResource(R.string.tv_france)) }
+            Button(onClick = { addPreset("https://epgshare01.online/epgshare01/epg_ripper_IT1.xml.gz") }, enabled = sources.size < MAX_EPG_SOURCES) { Text(stringResource(R.string.tv_italy)) }
+            Button(onClick = { sources = emptyList(); editing = null; draft = "" }) { Text(stringResource(R.string.tv_disable)) }
+        }
+        sources.forEachIndexed { index, source ->
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(onClick = { editing = index; draft = source }, modifier = Modifier.fillMaxWidth()) {
+                    Text("${index + 1}. $source", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { move(index, -1) }, enabled = index > 0) { Text(stringResource(R.string.tv_epg_up)) }
+                    Button(onClick = { move(index, 1) }, enabled = index < sources.lastIndex) { Text(stringResource(R.string.tv_epg_down)) }
+                    Button(onClick = { sources = sources.filterIndexed { i, _ -> i != index }; editing = null; draft = "" }) { Text(stringResource(R.string.tv_delete)) }
+                }
+            }
         }
         NuvioTextField(draft, { draft = it.take(4096) }, Modifier.fillMaxWidth(), stringResource(R.string.tv_epg_url))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(onClick = {
+                sources = if (editing == null) sources + clean else sources.mapIndexed { index, url -> if (index == editing) clean else url }
+                editing = null; draft = ""
+            }, enabled = valid) { Text(stringResource(if (editing == null) R.string.tv_epg_add else R.string.tv_epg_apply)) }
+            if (draft.isNotBlank()) Button(onClick = { editing = null; draft = "" }) { Text(stringResource(R.string.tv_cancel)) }
+        }
         Text(stringResource(R.string.tv_epg_matching_hint), style = MaterialTheme.typography.bodySmall)
     }
 }

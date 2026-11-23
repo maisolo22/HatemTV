@@ -62,6 +62,7 @@ fun LiveTVScreen(
     val epgLoading by libraryViewModel.epgLoading.collectAsStateWithLifecycle()
     val epgFailed by libraryViewModel.epgFailed.collectAsStateWithLifecycle()
     val epgStale by libraryViewModel.epgStale.collectAsStateWithLifecycle()
+    val epgPartial by libraryViewModel.epgPartial.collectAsStateWithLifecycle()
     val saveFailed by libraryViewModel.saveFailed.collectAsStateWithLifecycle()
     val library = scoped.library
     val roomyScreen = LocalConfiguration.current.screenHeightDp >= 700
@@ -164,8 +165,9 @@ fun LiveTVScreen(
                 saveFailed -> stringResource(R.string.tv_save_failed)
                 epgLoading -> stringResource(R.string.tv_epg_loading)
                 epgFailed -> stringResource(R.string.tv_epg_failed)
+                epgPartial -> stringResource(R.string.tv_epg_partial)
                 epgStale -> stringResource(R.string.tv_epg_stale)
-                library.epgUrl.isBlank() -> stringResource(R.string.tv_epg_not_set)
+                library.epgSources.isEmpty() -> stringResource(R.string.tv_epg_not_set)
                 else -> stringResource(R.string.tv_channel_count, channels.size)
             }, style = MaterialTheme.typography.bodySmall, color = Color(0xFFBFC0C7), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -225,7 +227,7 @@ fun LiveTVScreen(
         }
     }
     if (manageFolders) LiveTVFoldersDialog(library, libraryViewModel, onDismiss = { manageFolders = false })
-    if (epgDialog) LiveTVEpgDialog(library.epgUrl, onSave = { libraryViewModel.epgSource(it); epgDialog = false },
+    if (epgDialog) LiveTVEpgDialog(library.epgSources, onSave = { libraryViewModel.epgSources(it); epgDialog = false },
         onRefresh = { libraryViewModel.refreshEpg(true); epgDialog = false }, onDismiss = { epgDialog = false })
     channelOptions?.let { channel ->
         LiveTVChannelDialog(channel, library, libraryViewModel, onDismiss = { channelOptions = null })

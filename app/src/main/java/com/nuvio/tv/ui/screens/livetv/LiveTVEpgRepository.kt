@@ -22,7 +22,7 @@ internal class LimitedTVInput(input: InputStream, private val limit: Long) : Fil
     override fun read(b: ByteArray, off: Int, len: Int): Int = account(super.read(b, off, len))
 }
 
-data class LiveTVEpgResult(val data: LiveTVEpg, val fetchedAt: Long, val stale: Boolean)
+data class LiveTVEpgResult(val data: LiveTVEpg, val fetchedAt: Long, val stale: Boolean, val failedSources: Int = 0)
 
 @Singleton
 class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Context) {
@@ -30,8 +30,31 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
     private val mutex = Mutex()
     private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS).build()
-    private var memoryUrl: String? = null
-    private var memory: LiveTVEpgResult? = null
+    private val memory = linkedMapOf<String, LiveTVEpgResult>()
+
+    suspend fun loadSources(urls: List<String>, force: Boolean = false, channels: List<LiveTVChannel> = emptyList(),
+        epgIds: Map<String, String> = emptyMap()): LiveTVEpgResult {
+        val results = mutableListOf<LiveTVEpgResult>()
+        var failed = 0
+        var remaining = channels
+        for (url in cleanEpgSources(urls)) {
+            try {
+                val result = load(url, force, remaining, epgIds)
+                results.add(result)
+                val now = System.currentTimeMillis()
+                remaining = remaining.filter { channel ->
+                    val id = epgIds[channel.key]?.takeIf { id -> result.data.channels.any { it.id == id } }
+                    result.data.schedule(channel, id, now).none { it.end > now }
+                }
+                // No later source is needed for any of the requested channels.
+                if (channels.isNotEmpty() && remaining.isEmpty()) break
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { failed++ }
+        }
+        if (results.isEmpty()) throw IOException("No usable XMLTV source")
+        return LiveTVEpgResult(LiveTVEpg(sourceGuides = results.map { it.data }),
+            results.minOf { it.fetchedAt }, results.any { it.stale }, failed)
+    }
 
     suspend fun load(rawUrl: String, force: Boolean = false, channels: List<LiveTVChannel> = emptyList(),
         epgIds: Map<String, String> = emptyMap()): LiveTVEpgResult = withContext(Dispatchers.IO) {
@@ -41,7 +64,7 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
         val url = rawUrl.toHttpUrlOrNull() ?: throw IOException("Invalid XMLTV URL")
         mutex.withLock {
             val now = System.currentTimeMillis()
-            memory?.takeIf { !force && memoryUrl == cacheKey && now - it.fetchedAt < 12 * 3_600_000L }?.let { return@withLock it }
+            memory[cacheKey]?.takeIf { !force && !it.stale && now - it.fetchedAt < 12 * 3_600_000L }?.let { return@withLock it }
             val hash = MessageDigest.getInstance("SHA-256").digest(rawUrl.toByteArray()).joinToString("") { "%02x".format(it) }
             val file = File(directory, "$hash.xmltv")
             var stale = false
@@ -69,18 +92,23 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
                     if (!temporary.renameTo(file)) { temporary.copyTo(file, overwrite = true); temporary.delete() }
                     file.setLastModified(now)
                     val result = LiveTVEpgResult(parsed, now, false)
-                    memoryUrl = cacheKey; memory = result
+                    remember(cacheKey, result)
                     directory.listFiles()?.filter { it != file && it.extension == "xmltv" }
-                        ?.sortedByDescending { it.lastModified() }?.drop(1)?.forEach { it.delete() }
+                        ?.sortedByDescending { it.lastModified() }?.drop(MAX_EPG_SOURCES - 1)?.forEach { it.delete() }
                     return@withLock result
                 } catch (e: CancellationException) { throw e }
                 catch (e: Exception) { if (!file.exists()) throw e; stale = true }
                 finally { temporary.delete() }
             }
             val result = LiveTVEpgResult(parse(file, now, wantedNames, wantedIds), file.lastModified(), stale)
-            memoryUrl = cacheKey; memory = result
+            remember(cacheKey, result)
             result
         }
+    }
+    private fun remember(key: String, result: LiveTVEpgResult) {
+        memory.remove(key)
+        memory[key] = result
+        while (memory.size > 4) memory.remove(memory.keys.first())
     }
     private fun parse(file: File, now: Long, names: Set<String>?, ids: Set<String>): LiveTVEpg = file.inputStream().buffered().use { input ->
         input.mark(2)

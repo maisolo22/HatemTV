@@ -32,13 +32,18 @@
     <string name="tv_delete_confirm">Supprimer le dossier « %1$s » ? Les chaînes restent disponibles dans leurs addons.</string>
     <string name="tv_channel_folder_hint">Sélectionnez les dossiers pour ajouter ou retirer cette chaîne. Chaque modification est sauvegardée immédiatement.</string>
     <string name="tv_folder_create_add">Créer le dossier et ajouter cette chaîne</string>
-    <string name="tv_epg_id_hint">Facultatif : identifiant exact de la chaîne dans XMLTV. Laissez vide pour la correspondance automatique par nom.</string>
+    <string name="tv_epg_id_hint">Facultatif : identifiant XMLTV exact. Si cet identifiant est absent d’une source, la correspondance automatique y est utilisée. Laissez vide pour le mode automatique.</string>
     <string name="tv_epg_id">Identifiant de chaîne XMLTV</string>
-    <string name="tv_epg_source_hint">Choisissez une source ou saisissez votre URL XMLTV / XMLTV.gz. Les programmes dépendent de cette source et sont conservés en cache 12 heures.</string>
+    <string name="tv_epg_source_hint">Ajoutez jusqu’à 8 sources XMLTV / XMLTV.gz. La première avec des programmes actuels ou à venir pour une chaîne est utilisée ; sinon, la suivante. Cache de 12 heures par source.</string>
     <string name="tv_france">France</string>
     <string name="tv_italy">Italie</string>
     <string name="tv_disable">Désactiver</string>
     <string name="tv_epg_url">URL XMLTV</string>
     <string name="tv_epg_matching_hint">La correspondance utilise le nom ou identifiant de chaîne. Si nécessaire, précisez son identifiant XMLTV dans Options chaîne. Aucun programme fictif ne sera affiché.</string>
     <string name="tv_details">Détails</string>
+    <string name="tv_epg_up">Monter</string>
+    <string name="tv_epg_down">Descendre</string>
+    <string name="tv_epg_add">Ajouter la source</string>
+    <string name="tv_epg_apply">Appliquer</string>
+    <string name="tv_epg_partial">Certaines sources EPG sont indisponibles · les autres restent utilisées</string>
 </resources>

@@ -26,7 +26,8 @@ data class TVProgramme(val title: String, val start: Long, val end: Long, val de
 data class XmlTVChannel(val id: String, val names: List<String>)
 data class LiveTVEpg(
     val channels: List<XmlTVChannel> = emptyList(),
-    val programmes: Map<String, List<TVProgramme>> = emptyMap()
+    val programmes: Map<String, List<TVProgramme>> = emptyMap(),
+    val sourceGuides: List<LiveTVEpg> = emptyList()
 ) {
     private val byName: Map<String, List<XmlTVChannel>> by lazy {
         channels.flatMap { c -> c.names.map { epgName(it) to c } }.groupBy({ it.first }, { it.second })
@@ -40,8 +41,19 @@ data class LiveTVEpg(
         if (normalized.isBlank()) return null
         return byName[normalized]?.distinctBy { it.id }?.singleOrNull()?.id
     }
-    fun schedule(channel: LiveTVChannel, explicitId: String? = null): List<TVProgramme> =
-        channelId(channel, explicitId)?.let { programmes[it] }.orEmpty()
+    fun schedule(channel: LiveTVChannel, explicitId: String? = null, now: Long = System.currentTimeMillis()): List<TVProgramme> {
+        if (sourceGuides.isNotEmpty()) {
+            for (guide in sourceGuides) {
+                // IDs differ between publishers. Honour an override where it exists;
+                // otherwise let this source use its normal unambiguous ID/name matching.
+                val override = explicitId?.takeIf { id -> guide.channels.any { it.id == id } }
+                val schedule = guide.schedule(channel, override, now)
+                if (schedule.any { it.end > now }) return schedule
+            }
+            return emptyList()
+        }
+        return channelId(channel, explicitId)?.let { programmes[it] }.orEmpty()
+    }
 }
 
 /** Streaming parser: no XML document tree, bounded retained events and text. */

@@ -85,3 +85,28 @@ own UI and are not affected by this in-app OSD.
 Tests cover navigation context round trips, VOD/live selection, wake-key ownership, programme
 selection/progress, measured format labels and profile-safe EPG mappings. Actual remote navigation
 and decoder behaviour still need a Mi Box test. The CI signing cache is reused from legacy-tv.2.
+
+## Version legacy-tv.4 — ordered EPG sources
+
+EPG settings now store up to eight distinct URLs in priority order per profile. The existing single
+URL is retained as the first source when opening an older library. Save commits the whole list;
+Cancel leaves stored settings unchanged. France and Italy add presets to the list rather than
+replacing it. Select a source to edit its URL; Move up/down changes priority and Delete removes it.
+Add/Apply accepts a draft URL, then Save persists the list. Refresh uses the saved list.
+
+Each channel uses the first source with at least one current or future programme. Missing,
+ambiguous, empty or expired matches fall through to the next source. Entire schedules remain
+separate: programmes from competing publishers and colliding XMLTV IDs are never merged.
+An explicit channel ID is honoured in sources containing that ID; other sources try automatic
+matching. This same policy is used by the guide, channel cards and integrated player.
+
+Sources load sequentially and later sources are skipped once all requested channels have coverage.
+A failed source does not prevent later sources from loading; partial failures are shown in Live TV.
+A valid cached schedule remains eligible during a failed refresh. Raw source caches are separate,
+limited to eight files, and retain the existing twelve-hour freshness policy. Parsed memory cache
+is bounded to four target-specific entries. No recurring background download is added.
+
+Tests cover priority changes, empty/expired/future schedules, cross-source ID collisions, manual
+mapping, old JSON migration, ordered persistence/profile isolation, independent gzip/disk caching,
+HTTP failure fallback and shared player use. UI regression tests are compiled in CI; Mi Box
+remote validation remains necessary. Signing reuses the same cache as legacy-tv.3.

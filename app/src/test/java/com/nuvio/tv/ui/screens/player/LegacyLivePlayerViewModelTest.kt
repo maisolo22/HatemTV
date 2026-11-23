@@ -26,17 +26,22 @@ class LegacyLivePlayerViewModelTest {
         val store = mockk<LiveTVLibraryStore>()
         every { store.data } returns scoped
         val repository = mockk<LiveTVEpgRepository>()
-        coEvery { repository.load(any(), any(), any(), any()) } returns LiveTVEpgResult(
+        coEvery { repository.loadSources(any(), any(), any(), any()) } returns LiveTVEpgResult(
             LiveTVEpg(listOf(XmlTVChannel("xml-id", listOf("Different source name"))), mapOf("xml-id" to listOf(programme))), 0, false)
         val vm = LegacyLivePlayerViewModel(SavedStateHandle(mapOf("profileId" to "1", "liveChannel" to encodeLivePlayerChannel(channel))), store, repository)
         vm.bind(channel)
         advanceUntilIdle()
         assertEquals(listOf(programme), vm.uiState.value.programmes)
         assertEquals(listOf("Sport"), vm.uiState.value.folders)
-        coVerify { repository.load(library.epgUrl, false, listOf(channel), library.epgIds) }
+        coVerify { repository.loadSources(library.epgSources, false, listOf(channel), library.epgIds) }
+        val sources = listOf("https://first.example/tv.xml.gz", "https://second.example/tv.xml.gz")
+        scoped.value = ProfileLiveTVLibrary(1, library.withEpgSources(sources))
+        advanceUntilIdle()
+        coVerify { repository.loadSources(sources, false, listOf(channel), library.epgIds) }
+        assertEquals(listOf(programme), vm.uiState.value.programmes)
         scoped.value = ProfileLiveTVLibrary(2, library.copy(epgUrl = "https://private-profile.example/epg.xml"))
         advanceUntilIdle()
         assertTrue(vm.uiState.value.programmes.isEmpty())
-        coVerify(exactly = 0) { repository.load("https://private-profile.example/epg.xml", any(), any(), any()) }
+        coVerify(exactly = 0) { repository.loadSources(listOf("https://private-profile.example/epg.xml"), any(), any(), any()) }
     }
 }

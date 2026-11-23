@@ -36,8 +36,12 @@ class LiveTVLibraryStoreTest {
         assertEquals(channel, restored.folders.single().channels.single())
         assertEquals(LiveTVViewMode.GUIDE, restored.viewMode)
         assertEquals("sport.fr", restored.epgIds[channel.key])
+        val sources = listOf("https://fr.example/guide.xml.gz", "https://it.example/guide.xml.gz")
+        reopened.update(1) { it.withEpgSources(sources) }
+        assertEquals(sources, LiveTVLibraryStore(factory, profile).data.first().library.epgSources)
         active.value = 2
         assertEquals("Films", reopened.data.first().library.folders.single().name)
+        assertTrue(reopened.data.first().library.epgSources.isEmpty())
     }
     private class MemoryPreferences : DataStore<Preferences> {
         private val state = MutableStateFlow(emptyPreferences())
