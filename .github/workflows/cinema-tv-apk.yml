@@ -23,7 +23,7 @@ jobs:
           ./gradlew :app:testFullDebugUnitTest
           --tests 'com.nuvio.tv.ui.screens.search.SearchViewModelPaginationTest'
           --tests 'com.nuvio.tv.ui.screens.home.ModernHomeIdentityRelocationTest'
-          --tests 'com.nuvio.tv.ui.screens.livetv.LiveTVViewModelTest'
+          --tests 'com.nuvio.tv.ui.screens.livetv.*'
       - name: Compile the server connection regression test
         run: ./gradlew :app:compileFullDebugAndroidTestKotlin
       - name: Build the universal APK

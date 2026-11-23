@@ -29,3 +29,30 @@ CI tests source detection, raw types, pagination, source cancellation, addon dis
 along with the existing home focus/discovery tests. It also compiles Android UI regression tests and
 builds a universal APK. These CI APKs use generated debug signing keys; updating from a different
 build may require reinstalling after backing up settings. For durable distribution, supply a private release keystore.
+
+## Version legacy-tv.2
+
+Live TV now has List, Mosaic and Guide views with a focused-channel artwork/programme header,
+white focus pills, time ruler, now indicator and a three-hour guide window. Earlier/Now/Later
+browse the schedule (up to six hours back and forty-eight hours ahead). The view is saved per profile.
+OK opens stream selection; hold OK or select Channel options to organize a channel.
+
+Folders can be created, renamed and deleted from Folders. A channel can belong to several folders.
+Channel references include provider URL, exact content type and ID, avoiding collisions between
+providers. Folders store references and artwork, never expiring playback URLs. Disabling an addon
+hides its channels from folder playback, while retaining membership for later reactivation.
+Folders, view choice, XMLTV source and manual EPG mappings are stored locally per profile.
+They persist across app restarts; they are not synced to a server.
+
+EPG accepts XMLTV and XMLTV.gz URLs; France/Italy presets use the same epgshare01 feeds referenced
+by Legacy's src/epg.c. No EPG network requests happen until a source is configured and channels exist.
+Sources are cached for twelve hours. A failed refresh retains the previous cache and labels it as stale.
+The streaming parser retains schedules for the displayed/saved channels with bounded input sizes,
+retained text/events and a 48-hour future window. Matching prefers exact channel IDs, then unique
+normalized display names. Channel options allow an explicit XMLTV ID when automatic matching fails.
+Unmatched channels show Programme unavailable; catalog descriptions are not used as fake EPG data.
+A source may not cover every channel. The artwork panel is not a live video preview.
+
+Validation covers profile isolation and persisted library serialization, folder membership across
+providers, XMLTV times/timezones, matching ambiguity, guide geometry, gzip/cache and failed refresh.
+UI regression tests are compiled in CI; actual Mi Box remote/playback validation remains necessary.
