@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,8 @@ fun LiveTVScreen(
     val epgStale by libraryViewModel.epgStale.collectAsStateWithLifecycle()
     val saveFailed by libraryViewModel.saveFailed.collectAsStateWithLifecycle()
     val library = scoped.library
+    val roomyScreen = LocalConfiguration.current.screenHeightDp >= 700
+    var showInformation by rememberSaveable(scoped.profileId) { mutableStateOf(roomyScreen) }
     var folderId by rememberSaveable(scoped.profileId) { mutableStateOf<String?>(null) }
     var focusedKey by rememberSaveable(scoped.profileId) { mutableStateOf<String?>(null) }
     var windowOffset by rememberSaveable(scoped.profileId) { mutableLongStateOf(0L) }
@@ -110,12 +113,14 @@ fun LiveTVScreen(
                     Modifier.focusRequester(contentFocus).focusRequester(firstAction)) { libraryViewModel.mode(LiveTVViewMode.LIST) } }
                 item { TVPill(stringResource(R.string.tv_mosaic), library.viewMode == LiveTVViewMode.MOSAIC) { libraryViewModel.mode(LiveTVViewMode.MOSAIC) } }
                 item { TVPill(stringResource(R.string.tv_guide), library.viewMode == LiveTVViewMode.GUIDE) { libraryViewModel.mode(LiveTVViewMode.GUIDE) } }
+                item { TVPill(stringResource(R.string.tv_details), showInformation) { showInformation = !showInformation } }
                 item { TVPill(stringResource(R.string.tv_folders)) { manageFolders = true } }
                 item { TVPill(stringResource(R.string.tv_epg)) { epgDialog = true } }
                 item { TVPill(stringResource(R.string.legacy_addons)) { onManageAddons() } }
             }
             Text(tvClock(now), style = MaterialTheme.typography.titleMedium, color = Color.White)
         }
+        if (showInformation) {
         Row(Modifier.fillMaxWidth().height(125.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF161619))) {
             Column(Modifier.weight(1f).fillMaxHeight().padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(selected?.name ?: stringResource(R.string.legacy_live_tv), style = MaterialTheme.typography.titleLarge,
@@ -134,6 +139,7 @@ fun LiveTVScreen(
                 Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xFF161619), Color.Transparent))))
                 if (selected != null) AsyncImage(selected.logo, null, Modifier.size(80.dp).align(Alignment.Center), contentScale = ContentScale.Fit)
             }
+        }
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(4.dp)) {
             item { TVPill(stringResource(R.string.tv_all_channels), folderId == null) { folderId = null } }

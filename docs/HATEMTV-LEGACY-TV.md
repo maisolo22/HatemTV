@@ -34,7 +34,9 @@ may require reinstalling after backing up settings. For durable distribution, su
 ## Version legacy-tv.2
 
 Live TV now has List, Mosaic and Guide views with a focused-channel artwork/programme header,
-white focus pills, time ruler, now indicator and a three-hour guide window. Earlier/Now/Later
+white focus pills, time ruler, now indicator and a three-hour guide window. The Details banner is
+collapsed by default on compact TV layouts so multiple channel rows fit on a Mi Box. Details can
+show or hide the artwork/programme panel; larger layouts show it initially. Earlier/Now/Later
 browse the schedule (up to six hours back and forty-eight hours ahead). The view is saved per profile.
 OK opens stream selection; hold OK or select Channel options to organize a channel.
 

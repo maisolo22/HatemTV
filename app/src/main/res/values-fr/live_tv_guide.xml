@@ -40,4 +40,5 @@
     <string name="tv_disable">Désactiver</string>
     <string name="tv_epg_url">URL XMLTV</string>
     <string name="tv_epg_matching_hint">La correspondance utilise le nom ou identifiant de chaîne. Si nécessaire, précisez son identifiant XMLTV dans Options chaîne. Aucun programme fictif ne sera affiché.</string>
+    <string name="tv_details">Détails</string>
 </resources>

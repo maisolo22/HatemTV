@@ -40,4 +40,5 @@
     <string name="tv_disable">Disable</string>
     <string name="tv_epg_url">XMLTV URL</string>
     <string name="tv_epg_matching_hint">Automatic matching uses the channel name or ID. For an unmatched channel, use Channel options to enter its exact XMLTV ID. No schedule is fabricated.</string>
+    <string name="tv_details">Details</string>
 </resources>
