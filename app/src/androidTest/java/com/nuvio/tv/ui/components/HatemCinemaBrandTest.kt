@@ -18,8 +18,8 @@ class HatemCinemaBrandTest {
         val credit = compose.onNodeWithText("Application codé par El Habib Hatem").assertIsDisplayed()
         val creditBounds = credit.getUnclippedBoundsInRoot()
         val root = compose.onRoot().getUnclippedBoundsInRoot()
-        assertTrue(creditBounds.center.x > root.center.x)
-        assertTrue(creditBounds.center.y < root.center.y)
+        assertTrue(creditBounds.left + creditBounds.right > root.left + root.right)
+        assertTrue(creditBounds.top + creditBounds.bottom < root.top + root.bottom)
     }
     @Test fun profileHeaderUsesTheSameExactAuthorCredit() {
         compose.setContent {
