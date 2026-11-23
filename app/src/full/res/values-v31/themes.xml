@@ -1,0 +1,7 @@
+<resources>
+<style name="Theme.MyApplication.Launcher" parent="Theme.SplashScreen">
+<item name="windowSplashScreenBackground">#09080D</item>
+<item name="windowSplashScreenAnimatedIcon">@drawable/hatem_cinema_mark</item>
+<item name="postSplashScreenTheme">@style/Theme.MyApplication</item>
+</style>
+</resources>

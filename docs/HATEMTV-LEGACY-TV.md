@@ -139,3 +139,22 @@ Left enters the menu; Right returns from the menu to the last focused/first avai
 Long OK, Up/Down, fresh OK confirmation and Back cancellation keep their existing behaviour.
 The saved category order and all EPG/folder settings are preserved. Brand mockups are proposals
 only; this navigation correction does not apply an unselected visual identity.
+
+## Version legacy-tv.7 — Hatem Multi Media cinema identity
+
+The personal full APK uses the selected red ribbon H/play identity and exact name Hatem Multi
+Media. Native vector marks, launcher icon, TV banner and outlined wordmark remain sharp across
+TV densities. All existing launcher components use the same identity, including users with a
+previously selected alternate icon. Android system launch and the in-app startup share the mark.
+
+The in-app startup has a dark red cinema backdrop, centered identity and three subtle animated
+loading dots governed by the existing startup state. Profile selection uses the same backdrop,
+a compact upper-left wordmark, rounded-square avatars and a white focus outline. Custom avatar
+images and custom profile backgrounds remain supported. Illustrated defaults cover absent/failed
+avatar images. Selection, PIN protection, editing, profile limits and focus handlers are reused.
+
+Both in-app startup and profile pages carry the exact text "Application codé par El Habib Hatem"
+in the physical top-right corner, at 9sp with 38% white opacity and TV-safe insets. Brand casing is
+Hatem Multi Media throughout these screens. The left-side Live TV menu and all saved settings from
+legacy-tv.6 remain included. Compile checks cover the branding/credit UI regression; Mi Box visual
+and remote validation remains pending. Package identity and signing are retained for an update.

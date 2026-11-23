@@ -1,5 +1,11 @@
 package com.nuvio.tv.ui.screens.profile
 
+import com.nuvio.tv.BuildConfig
+import com.nuvio.tv.ui.components.HatemAuthorCredit
+import com.nuvio.tv.ui.components.HatemCinemaBackground
+import com.nuvio.tv.ui.components.HatemProfileAvatar
+import com.nuvio.tv.ui.components.BrandWordmark
+import androidx.compose.foundation.layout.absolutePadding
 import androidx.tv.material3.MaterialTheme
 import com.nuvio.tv.ui.theme.NuvioPrimitives
 import com.nuvio.tv.ui.util.contentTextDirection
@@ -74,6 +80,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
@@ -369,6 +376,12 @@ fun ProfileSelectionScreen(
             focusedAvatarColor = overlayProfileColor ?: focusedAvatarColor,
             profileBackground = profileBackground
         )
+
+        if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+            BrandWordmark(Modifier.align(AbsoluteAlignment.TopLeft).absolutePadding(left = 40.dp, top = 20.dp).height(30.dp),
+                contentDescription = stringResource(R.string.hatem_app_name))
+            HatemAuthorCredit(Modifier.align(AbsoluteAlignment.TopRight))
+        }
 
         AnimatedContent(
             targetState = pinOverlayState,
@@ -821,6 +834,10 @@ private fun ProfileSelectionBackground(
     focusedAvatarColor: Color,
     profileBackground: ProfileBackgroundArtwork?
 ) {
+    if (BuildConfig.FEATURE_CINEMA_UI_ENABLED && profileBackground == null) {
+        HatemCinemaBackground()
+        return
+    }
     val animatedAvatarColor by animateColorAsState(
         targetValue = focusedAvatarColor,
         animationSpec = tween(durationMillis = 520),
@@ -914,10 +931,11 @@ private fun ProfileSelectionMainContent(
             .fillMaxSize()
             .padding(
                 horizontal = ProfileSelectionSpacing.ScreenPaddingHorizontal,
-                vertical = ProfileSelectionSpacing.ScreenPaddingVertical
+                vertical = if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) 80.dp else ProfileSelectionSpacing.ScreenPaddingVertical
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        if (!BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
         MemberBrandWordmark(
             height = ProfileSelectionSpacing.LogoHeight,
             contentDescription = stringResource(R.string.cd_nuvio_logo),
@@ -925,15 +943,17 @@ private fun ProfileSelectionMainContent(
         )
 
         Spacer(modifier = Modifier.height(ProfileSelectionSpacing.LogoToHeading))
+        }
 
         Text(
             text = screenTitle,
             color = NuvioTheme.colors.TextPrimary,
-            fontSize = 44.sp,
+            fontSize = if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) 38.sp else 44.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.5).sp
         )
 
+        if (!BuildConfig.FEATURE_CINEMA_UI_ENABLED || isManagementMode) {
         Spacer(modifier = Modifier.height(ProfileSelectionSpacing.HeadingToSubheading))
 
         Text(
@@ -942,6 +962,7 @@ private fun ProfileSelectionMainContent(
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium
         )
+        }
 
         Spacer(modifier = Modifier.weight(1f, fill = true))
 
@@ -1081,6 +1102,7 @@ private fun ProfileCard(
     onClick: () -> Unit,
     onLongPress: () -> Unit
 ) {
+    val avatarShape = if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) RoundedCornerShape(22.dp) else CircleShape
     var isFocused by remember { mutableStateOf(false) }
     var longPressTriggered by remember { mutableStateOf(false) }
     val longPressKeyTracker = rememberLongPressKeyTracker()
@@ -1179,24 +1201,28 @@ private fun ProfileCard(
             Box(
                 modifier = Modifier
                     .size(outerAvatarSize)
-                    .clip(CircleShape)
+                    .clip(avatarShape)
                     .border(
                         width = NuvioTheme.spacing.hairline,
                         color = NuvioTheme.colors.Border.copy(alpha = 0.75f),
-                        shape = CircleShape
+                        shape = avatarShape
                     )
                     .border(
-                        border = (profileFocusRing ?: NuvioTheme.focusRing).border(ringWidth, focusProgress),
-                        shape = CircleShape
+                        border = if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) androidx.compose.foundation.BorderStroke(ringWidth, Color.White.copy(alpha = 0.15f + 0.85f * focusProgress)) else (profileFocusRing ?: NuvioTheme.focusRing).border(ringWidth, focusProgress),
+                        shape = avatarShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
+                if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+                    HatemProfileAvatar(profile.name, profile.id, profile.isPrimary, avatarImageUrl, outerAvatarSize - 7.dp)
+                } else {
                 ProfileAvatarCircle(
                     name = profile.name,
                     colorHex = profile.avatarColorHex,
                     size = avatarSize,
                     avatarImageUrl = avatarImageUrl
                 )
+                }
             }
 
             if (profile.isPrimary) {
@@ -1276,6 +1302,7 @@ private fun AddProfileCard(
     onFocused: () -> Unit,
     onClick: () -> Unit
 ) {
+    val avatarShape = if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) RoundedCornerShape(22.dp) else CircleShape
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val focusProgress by animateFloatAsState(
@@ -1343,17 +1370,17 @@ private fun AddProfileCard(
             Box(
                 modifier = Modifier
                     .size(outerAvatarSize)
-                    .clip(CircleShape)
+                    .clip(avatarShape)
                     .border(
                         width = NuvioTheme.spacing.hairline,
                         color = NuvioTheme.colors.Border.copy(alpha = 0.5f),
-                        shape = CircleShape
+                        shape = avatarShape
                     )
                     .border(
-                        border = NuvioTheme.focusRing.border(ringWidth, focusProgress),
-                        shape = CircleShape
+                        border = if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) androidx.compose.foundation.BorderStroke(ringWidth, Color.White.copy(alpha = 0.15f + 0.85f * focusProgress)) else NuvioTheme.focusRing.border(ringWidth, focusProgress),
+                        shape = avatarShape
                     )
-                    .background(addBackgroundColor, CircleShape),
+                    .background(addBackgroundColor, avatarShape),
                 contentAlignment = Alignment.Center
             ) {
                 Box(

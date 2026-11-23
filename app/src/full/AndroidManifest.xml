@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Lets the in-app updater install its own updates without a confirmation screen on Android 12+. -->
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
-    <application>
+    <application android:icon="@drawable/hatem_cinema_launcher" android:banner="@drawable/hatem_cinema_banner" android:label="@string/hatem_app_name"
+        tools:replace="android:icon,android:banner,android:label">
         <service
             android:name=".updater.UpdateJobService"
             android:exported="false"
@@ -13,5 +14,18 @@
         <receiver
             android:name=".updater.UpdateInstallResultReceiver"
             android:exported="false" />
+
+        <activity android:name=".launcher.AppIconDefault" android:icon="@drawable/hatem_cinema_launcher" android:banner="@drawable/hatem_cinema_banner" android:label="@string/hatem_app_name"
+            tools:replace="android:icon,android:banner,android:label" />
+        <activity android:name=".launcher.AppIconArcticBlue" android:icon="@drawable/hatem_cinema_launcher" android:banner="@drawable/hatem_cinema_banner" android:label="@string/hatem_app_name"
+            tools:replace="android:icon,android:banner,android:label" />
+        <activity android:name=".launcher.AppIconEmerald" android:icon="@drawable/hatem_cinema_launcher" android:banner="@drawable/hatem_cinema_banner" android:label="@string/hatem_app_name"
+            tools:replace="android:icon,android:banner,android:label" />
+        <activity android:name=".launcher.AppIconRoseGold" android:icon="@drawable/hatem_cinema_launcher" android:banner="@drawable/hatem_cinema_banner" android:label="@string/hatem_app_name"
+            tools:replace="android:icon,android:banner,android:label" />
+        <activity android:name=".launcher.AppIconCopper" android:icon="@drawable/hatem_cinema_launcher" android:banner="@drawable/hatem_cinema_banner" android:label="@string/hatem_app_name"
+            tools:replace="android:icon,android:banner,android:label" />
+        <activity android:name=".launcher.AppIconGraphite" android:icon="@drawable/hatem_cinema_launcher" android:banner="@drawable/hatem_cinema_banner" android:label="@string/hatem_app_name"
+            tools:replace="android:icon,android:banner,android:label" />
     </application>
 </manifest>

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -24,6 +25,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.nuvio.tv.R
+import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.ui.theme.NuvioPrimitives
 import com.nuvio.tv.ui.theme.NuvioTheme
 
@@ -63,6 +65,8 @@ fun StartupSplashScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+        } else if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+            HatemCinemaBackground()
         } else if (!skipGradient) {
             val baseBg = Color(0xFF121212)
             val baseBgElevated = NuvioPrimitives.neutral875
@@ -101,6 +105,9 @@ fun StartupSplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) {
+                HatemStartupContent()
+            } else {
             BrandWordmark(
                 modifier = Modifier.height(48.dp),
                 contentDescription = stringResource(R.string.cd_nuvio_logo),
@@ -108,6 +115,8 @@ fun StartupSplashScreen(
             )
             Spacer(modifier = Modifier.height(NuvioTheme.spacing.xxl))
             LoadingIndicator(modifier = Modifier.size(NuvioTheme.spacing.xxxl))
+            }
         }
+        if (BuildConfig.FEATURE_CINEMA_UI_ENABLED) HatemAuthorCredit(Modifier.align(AbsoluteAlignment.TopRight))
     }
 }
