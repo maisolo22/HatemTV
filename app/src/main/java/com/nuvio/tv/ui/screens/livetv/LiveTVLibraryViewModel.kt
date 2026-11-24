@@ -71,7 +71,15 @@ class LiveTVLibraryViewModel @Inject constructor(
         val ids = state.value.library.epgIds
         epgJob = viewModelScope.launch {
             try {
-                val result = epgRepository.loadSources(urls, force, channels, ids)
+                if (!force) delay(450) // Coalesce catalogue pagination and quick folder navigation.
+                val result = epgRepository.loadSources(urls, force, channels, ids) { partial ->
+                    withContext(Dispatchers.Main.immediate) {
+                        if (token == generation) {
+                            epg.value = partial.data; epgStale.value = partial.stale
+                            epgPartial.value = partial.failedSources > 0
+                        }
+                    }
+                }
                 if (token == generation) { epg.value = result.data; epgStale.value = result.stale; epgPartial.value = result.failedSources > 0 }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { if (token == generation) epgFailed.value = true }

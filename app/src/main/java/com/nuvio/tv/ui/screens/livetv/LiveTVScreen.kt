@@ -34,6 +34,8 @@ import com.nuvio.tv.LocalSidebarExpanded
 import com.nuvio.tv.R
 import com.nuvio.tv.ui.components.LoadingIndicator
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -113,8 +115,14 @@ fun LiveTVScreen(
             viewModel.loadMore()
         }
     }
+    // Resolve every channel once on a worker, not during focus-driven UI recompositions.
+    val schedules by produceState<Map<String, List<TVProgramme>>>(emptyMap(), epg, channels, library.epgIds, now) {
+        value = withContext(Dispatchers.Default) {
+            channels.associate { it.key to epg.schedule(it, library.epgIds[it.key], now) }
+        }
+    }
     val selected = matchingChannels.firstOrNull { it.key == focusedKey } ?: matchingChannels.firstOrNull()
-    val schedule = selected?.let { epg.schedule(it, library.epgIds[it.key]) }.orEmpty()
+    val schedule = selected?.let { schedules[it.key] }.orEmpty()
     val current = schedule.firstOrNull { it.start <= now && it.end > now }
     val next = schedule.firstOrNull { it.start > now }
 
@@ -228,7 +236,7 @@ fun LiveTVScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
                                     contentPadding = PaddingValues(8.dp)) {
                                     items(matchingChannels, key = { it.key }) { channel ->
-                                        LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
+                                        LegacyTVChannelCard(channel, schedules[channel.key].orEmpty(), now,
                                             LiveTVViewMode.MOSAIC, windowStart, windowEnd,
                                             onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
                                             onOptions = { channelOptions = channel },
@@ -249,7 +257,7 @@ fun LiveTVScreen(
                                     LazyColumn(Modifier.fillMaxSize().focusRestorer(), contentPadding = PaddingValues(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         items(matchingChannels, key = { it.key }) { channel ->
-                                            LegacyTVChannelCard(channel, epg.schedule(channel, library.epgIds[channel.key]), now,
+                                            LegacyTVChannelCard(channel, schedules[channel.key].orEmpty(), now,
                                                 library.viewMode, windowStart, windowEnd,
                                                 onFocus = { focusedKey = channel.key }, onPlay = { focusedKey = channel.key; returnToChannel = true; onPlay(channel) },
                                                 onOptions = { channelOptions = channel },

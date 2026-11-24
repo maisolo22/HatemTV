@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.screens.livetv
 
 import android.content.Context
+import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.*
 import java.security.MessageDigest
@@ -15,9 +16,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
-internal class LimitedTVInput(input: InputStream, private val limit: Long) : FilterInputStream(input) {
+internal class LimitedTVInput(input: InputStream, private val limit: Long, private val checkActive: () -> Unit = {}) : FilterInputStream(input) {
     private var count = 0L
-    private fun account(n: Int): Int { if (n > 0) count += n; if (count > limit) throw IOException("XMLTV size limit"); return n }
+    private fun account(n: Int): Int { checkActive(); if (n > 0) count += n; if (count > limit) throw IOException("XMLTV size limit"); return n }
     override fun read(): Int { val value = super.read(); account(if (value < 0) 0 else 1); return value }
     override fun read(b: ByteArray, off: Int, len: Int): Int = account(super.read(b, off, len))
 }
@@ -31,9 +32,16 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
     private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS).build()
     private val memory = linkedMapOf<String, LiveTVEpgResult>()
+    private val gson = Gson()
+    // Persist only relevant parsed data, never reflection-serialize the EPG lookup indexes.
+    private data class ParsedCache(val version: Int, val modified: Long, val size: Long,
+        val channels: List<XmlTVChannel>, val programmes: Map<String, List<TVProgramme>>)
+    private fun hash(value: String) = MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
 
     suspend fun loadSources(urls: List<String>, force: Boolean = false, channels: List<LiveTVChannel> = emptyList(),
-        epgIds: Map<String, String> = emptyMap()): LiveTVEpgResult {
+        epgIds: Map<String, String> = emptyMap(),
+        onPartial: suspend (LiveTVEpgResult) -> Unit = {}): LiveTVEpgResult = withContext(Dispatchers.IO) {
         val results = mutableListOf<LiveTVEpgResult>()
         var failed = 0
         var remaining = channels
@@ -43,21 +51,25 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
                 results.add(result)
                 val now = System.currentTimeMillis()
                 remaining = remaining.filter { channel ->
-                    val id = epgIds[channel.key]?.takeIf { id -> result.data.channels.any { it.id == id } }
+                    val id = epgIds[channel.key]?.takeIf { id -> result.data.containsId(id) }
                     result.data.schedule(channel, id, now).none { it.end > now }
                 }
+                onPartial(LiveTVEpgResult(LiveTVEpg(sourceGuides = results.map { it.data }),
+                    results.minOf { it.fetchedAt }, results.any { it.stale }, failed))
                 // No later source is needed for any of the requested channels.
                 if (channels.isNotEmpty() && remaining.isEmpty()) break
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { failed++ }
         }
         if (results.isEmpty()) throw IOException("No usable XMLTV source")
-        return LiveTVEpgResult(LiveTVEpg(sourceGuides = results.map { it.data }),
+        LiveTVEpgResult(LiveTVEpg(sourceGuides = results.map { it.data }),
             results.minOf { it.fetchedAt }, results.any { it.stale }, failed)
     }
 
     suspend fun load(rawUrl: String, force: Boolean = false, channels: List<LiveTVChannel> = emptyList(),
         epgIds: Map<String, String> = emptyMap()): LiveTVEpgResult = withContext(Dispatchers.IO) {
+        val parseContext = currentCoroutineContext()
+        val currentCoroutineContextCheck = { parseContext.ensureActive() }
         val wantedNames = channels.takeIf { it.isNotEmpty() }?.map { epgName(it.name) }?.toSet()
         val wantedIds = channels.flatMap { listOfNotNull(it.id, it.id.substringAfterLast(':'), epgIds[it.key]) }.toSet()
         val cacheKey = rawUrl + "\u0000" + wantedNames.orEmpty().sorted().joinToString("\u0000") + "\u0001" + wantedIds.sorted().joinToString("\u0000")
@@ -65,8 +77,8 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
         mutex.withLock {
             val now = System.currentTimeMillis()
             memory[cacheKey]?.takeIf { !force && !it.stale && now - it.fetchedAt < 12 * 3_600_000L }?.let { return@withLock it }
-            val hash = MessageDigest.getInstance("SHA-256").digest(rawUrl.toByteArray()).joinToString("") { "%02x".format(it) }
-            val file = File(directory, "$hash.xmltv")
+            val file = File(directory, "${hash(rawUrl)}.xmltv")
+            val compact = File(directory, "${hash(cacheKey)}.parsed")
             var stale = false
             if (force || !file.exists() || now - file.lastModified() >= 12 * 3_600_000L) {
                 val temporary = File.createTempFile("epg-", ".part", directory)
@@ -74,7 +86,7 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
                     client.newCall(Request.Builder().url(url).build()).execute().use { response ->
                         if (!response.isSuccessful) throw IOException("XMLTV HTTP ${response.code}")
                         val body = response.body ?: throw IOException("Empty XMLTV response")
-                        LimitedTVInput(body.byteStream(), 24L * 1024 * 1024).use { input ->
+                        LimitedTVInput(body.byteStream(), 24L * 1024 * 1024) { currentCoroutineContextCheck() }.use { input ->
                             temporary.outputStream().use { output ->
                                 val buffer = ByteArray(32 * 1024)
                                 while (true) {
@@ -87,10 +99,12 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
                         }
                     }
                     // Validate before replacing a usable cache, including gzip signature detection.
-                    val parsed = parse(temporary, now, wantedNames, wantedIds)
+                    val parsed = parse(temporary, now, wantedNames, wantedIds, currentCoroutineContextCheck)
                     if (parsed.channels.isEmpty()) throw IOException("No XMLTV channels")
                     if (!temporary.renameTo(file)) { temporary.copyTo(file, overwrite = true); temporary.delete() }
                     file.setLastModified(now)
+                    memory.keys.removeAll { it.startsWith(rawUrl + "\u0000") }
+                    writeParsed(compact, file, parsed)
                     val result = LiveTVEpgResult(parsed, now, false)
                     remember(cacheKey, result)
                     directory.listFiles()?.filter { it != file && it.extension == "xmltv" }
@@ -100,7 +114,8 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
                 catch (e: Exception) { if (!file.exists()) throw e; stale = true }
                 finally { temporary.delete() }
             }
-            val result = LiveTVEpgResult(parse(file, now, wantedNames, wantedIds), file.lastModified(), stale)
+            val result = LiveTVEpgResult((readParsed(compact, file) ?: parse(file, now, wantedNames, wantedIds, currentCoroutineContextCheck)
+                .also { writeParsed(compact, file, it) }), file.lastModified(), stale)
             remember(cacheKey, result)
             result
         }
@@ -110,11 +125,33 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
         memory[key] = result
         while (memory.size > 4) memory.remove(memory.keys.first())
     }
-    private fun parse(file: File, now: Long, names: Set<String>?, ids: Set<String>): LiveTVEpg = file.inputStream().buffered().use { input ->
+    private fun readParsed(compact: File, source: File): LiveTVEpg? = runCatching {
+        if (!compact.exists() || compact.length() > 32L * 1024 * 1024) return null
+        val cached = compact.reader().buffered().use { gson.fromJson(it, ParsedCache::class.java) }
+        if (cached.version != 1 || cached.modified != source.lastModified() || cached.size != source.length()) return null
+        LiveTVEpg(cached.channels, cached.programmes)
+    }.getOrNull()
+
+    private fun writeParsed(compact: File, source: File, data: LiveTVEpg) {
+        // An optional acceleration cache must never make a valid guide fail to load.
+        runCatching {
+            val temporary = File.createTempFile("parsed-", ".part", directory)
+            try {
+                temporary.writer().buffered().use { gson.toJson(ParsedCache(1, source.lastModified(),
+                    source.length(), data.channels, data.programmes), it) }
+                if (temporary.length() <= 32L * 1024 * 1024) {
+                    if (!temporary.renameTo(compact)) temporary.copyTo(compact, overwrite = true)
+                }
+            } finally { temporary.delete() }
+            directory.listFiles()?.filter { it.extension == "parsed" }?.sortedByDescending { it.lastModified() }
+                ?.drop(12)?.forEach { it.delete() }
+        }
+    }
+    private fun parse(file: File, now: Long, names: Set<String>?, ids: Set<String>, checkActive: () -> Unit): LiveTVEpg = file.inputStream().buffered().use { input ->
         input.mark(2)
         val gzip = input.read() == 0x1f && input.read() == 0x8b
         input.reset()
         val decoded = if (gzip) GZIPInputStream(input) else input
-        LimitedTVInput(decoded, 160L * 1024 * 1024).use { XmlTVParser.parse(it, now, names, ids) }
+        LimitedTVInput(decoded, 160L * 1024 * 1024, checkActive).use { XmlTVParser.parse(it, now, names, ids) }
     }
 }
