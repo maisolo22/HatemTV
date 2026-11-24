@@ -34,7 +34,7 @@ class LiveTVEpgRepositoryTest {
                 val urls = listOf("fr", "down", "it").map { server.url("/$it.xml").toString() }
                 val repo = LiveTVEpgRepository(context)
                 val partials = mutableListOf<LiveTVEpgResult>()
-                val first = repo.loadSources(urls, channels = listOf(tf1, rai), onPartial = { partials.add(it) })
+                val first = repo.loadSourcesProgressively(urls, channels = listOf(tf1, rai), onPartial = { partials.add(it) })
                 assertEquals(2, partials.size)
                 assertEquals("France", partials.first().data.schedule(tf1).single().title)
                 assertTrue(partials.first().data.schedule(rai).isEmpty())

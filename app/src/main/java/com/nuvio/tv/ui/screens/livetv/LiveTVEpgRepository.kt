@@ -39,9 +39,14 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
     private fun hash(value: String) = MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
 
+    // Preserve the original API for the player and existing clients.
     suspend fun loadSources(urls: List<String>, force: Boolean = false, channels: List<LiveTVChannel> = emptyList(),
+        epgIds: Map<String, String> = emptyMap()): LiveTVEpgResult =
+        loadSourcesProgressively(urls, force, channels, epgIds) {}
+
+    suspend fun loadSourcesProgressively(urls: List<String>, force: Boolean = false, channels: List<LiveTVChannel> = emptyList(),
         epgIds: Map<String, String> = emptyMap(),
-        onPartial: suspend (LiveTVEpgResult) -> Unit = {}): LiveTVEpgResult = withContext(Dispatchers.IO) {
+        onPartial: suspend (LiveTVEpgResult) -> Unit): LiveTVEpgResult = withContext(Dispatchers.IO) {
         val results = mutableListOf<LiveTVEpgResult>()
         var failed = 0
         var remaining = channels
@@ -126,9 +131,9 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
         while (memory.size > 4) memory.remove(memory.keys.first())
     }
     private fun readParsed(compact: File, source: File): LiveTVEpg? = runCatching {
-        if (!compact.exists() || compact.length() > 32L * 1024 * 1024) return null
+        if (!compact.exists() || compact.length() > 24L * 1024 * 1024) return@runCatching null
         val cached = compact.reader().buffered().use { gson.fromJson(it, ParsedCache::class.java) }
-        if (cached.version != 1 || cached.modified != source.lastModified() || cached.size != source.length()) return null
+        if (cached.version != 1 || cached.modified != source.lastModified() || cached.size != source.length()) return@runCatching null
         LiveTVEpg(cached.channels, cached.programmes)
     }.getOrNull()
 
@@ -139,19 +144,23 @@ class LiveTVEpgRepository @Inject constructor(@ApplicationContext context: Conte
             try {
                 temporary.writer().buffered().use { gson.toJson(ParsedCache(1, source.lastModified(),
                     source.length(), data.channels, data.programmes), it) }
-                if (temporary.length() <= 32L * 1024 * 1024) {
+                if (temporary.length() <= 24L * 1024 * 1024) {
                     if (!temporary.renameTo(compact)) temporary.copyTo(compact, overwrite = true)
                 }
             } finally { temporary.delete() }
+            var retainedBytes = 0L
             directory.listFiles()?.filter { it.extension == "parsed" }?.sortedByDescending { it.lastModified() }
-                ?.drop(12)?.forEach { it.delete() }
+                ?.forEachIndexed { index, entry ->
+                    retainedBytes += entry.length()
+                    if (index >= 12 || retainedBytes > 48L * 1024 * 1024) entry.delete()
+                }
         }
     }
     private fun parse(file: File, now: Long, names: Set<String>?, ids: Set<String>, checkActive: () -> Unit): LiveTVEpg = file.inputStream().buffered().use { input ->
         input.mark(2)
         val gzip = input.read() == 0x1f && input.read() == 0x8b
         input.reset()
-        val decoded = if (gzip) GZIPInputStream(input) else input
+        val decoded = if (gzip) GZIPInputStream(input, 32 * 1024) else input
         LimitedTVInput(decoded, 160L * 1024 * 1024, checkActive).use { XmlTVParser.parse(it, now, names, ids) }
     }
 }

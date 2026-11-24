@@ -72,7 +72,7 @@ class LiveTVLibraryViewModel @Inject constructor(
         epgJob = viewModelScope.launch {
             try {
                 if (!force) delay(450) // Coalesce catalogue pagination and quick folder navigation.
-                val result = epgRepository.loadSources(urls, force, channels, ids) { partial ->
+                val result = epgRepository.loadSourcesProgressively(urls, force, channels, ids) { partial ->
                     withContext(Dispatchers.Main.immediate) {
                         if (token == generation) {
                             epg.value = partial.data; epgStale.value = partial.stale
