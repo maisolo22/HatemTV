@@ -7,8 +7,11 @@ data class SimklApiConfiguration(
     val clientId: String,
     val appName: String,
     val appVersion: String,
-    val baseUrl: String = "https://api.simkl.com"
-)
+    val baseUrl: String = "https://api.simkl.com",
+    private val fallbackClientId: () -> String = { "" }
+) {
+    fun effectiveClientId(): String = clientId.ifBlank(fallbackClientId)
+}
 
 fun buildSimklApiUrl(
     configuration: SimklApiConfiguration,
@@ -20,7 +23,7 @@ fun buildSimklApiUrl(
     query.filterKeys { it !in SIMKL_REQUIRED_QUERY_KEYS }.forEach { (key, value) ->
         builder.addQueryParameter(key, value)
     }
-    builder.addQueryParameter("client_id", configuration.clientId)
+    builder.addQueryParameter("client_id", configuration.effectiveClientId())
     builder.addQueryParameter("app-name", configuration.appName)
     builder.addQueryParameter("app-version", configuration.appVersion)
     return builder.build().toString()
@@ -39,10 +42,11 @@ fun simklRequestHeaders(
     if (contentTypeJson) put("Content-Type", "application/json")
 }
 
-fun defaultSimklApiConfiguration(): SimklApiConfiguration = SimklApiConfiguration(
+fun defaultSimklApiConfiguration(fallbackClientId: () -> String = { "" }): SimklApiConfiguration = SimklApiConfiguration(
     clientId = BuildConfig.SIMKL_CLIENT_ID,
     appName = BuildConfig.SIMKL_APP_NAME.ifBlank { "nuvio" },
-    appVersion = BuildConfig.VERSION_NAME.ifBlank { "dev" }
+    appVersion = BuildConfig.VERSION_NAME.ifBlank { "dev" },
+    fallbackClientId = fallbackClientId
 )
 
 private val SIMKL_REQUIRED_QUERY_KEYS = setOf("client_id", "app-name", "app-version")

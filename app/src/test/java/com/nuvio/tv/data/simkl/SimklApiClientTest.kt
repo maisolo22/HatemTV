@@ -9,6 +9,17 @@ import org.junit.Test
 
 class SimklApiClientTest {
     @Test
+    fun `a SIMKL client can use an ID supplied after the application starts`() {
+        var localId = ""
+        val configuration = SimklApiConfiguration("", "nuvio", "1.0", fallbackClientId = { localId })
+        assertTrue(configuration.effectiveClientId().isBlank())
+        localId = "registered-client"
+        assertTrue("client_id=registered-client" in buildSimklApiUrl(configuration, "/oauth/pin"))
+        val bundledConfiguration = configuration.copy(clientId = "bundled-client")
+        assertTrue("client_id=bundled-client" in buildSimklApiUrl(bundledConfiguration, "/oauth/pin"))
+    }
+
+    @Test
     fun `response classification retries only transient statuses`() {
         assertEquals(SimklResponseAction.SUCCESS, classifySimklResponse(200))
         assertEquals(SimklResponseAction.REAUTHENTICATE, classifySimklResponse(401))

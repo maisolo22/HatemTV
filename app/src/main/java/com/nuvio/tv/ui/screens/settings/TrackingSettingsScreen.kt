@@ -29,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import com.nuvio.tv.R
+import com.nuvio.tv.core.config.ServiceApi
 import com.nuvio.tv.core.tracking.TrackingProviderId
 import com.nuvio.tv.data.local.MoreLikeThisSourcePreference
 import com.nuvio.tv.data.local.TraktSettingsDataStore
@@ -92,6 +93,8 @@ internal fun TrackingSettingsContent(
     val continueWatchingFocusRequester = remember { FocusRequester() }
     val moreLikeThisFocusRequester = remember { FocusRequester() }
 
+    val apiViewModel = hiltViewModel<ServiceApiCredentialsViewModel>()
+    var configureProvider by remember { mutableStateOf<ServiceApi?>(null) }
     var activeProvider by remember { mutableStateOf<TrackingProviderId?>(null) }
     var dismissOnConnected by remember { mutableStateOf<TrackingProviderId?>(null) }
     var disconnectProvider by remember { mutableStateOf<TrackingProviderId?>(null) }
@@ -105,7 +108,7 @@ internal fun TrackingSettingsContent(
     var showMdbListLibraryListsDialog by remember { mutableStateOf(false) }
     var showWeTrakrDaysDialog by remember { mutableStateOf(false) }
 
-    val hasOverlay = activeProvider != null ||
+    val hasOverlay = configureProvider != null || activeProvider != null ||
         disconnectProvider != null ||
         showLibrarySourceDialog ||
         showWatchProgressDialog ||
@@ -178,49 +181,58 @@ internal fun TrackingSettingsContent(
             TrackingProviderId.FLOPPY -> TrackingFocusTarget.FLOPPY
             TrackingProviderId.WETRAKR -> TrackingFocusTarget.WETRAKR
         }
-        activeProvider = provider
-        disconnectProvider = null
-        when (provider) {
-            TrackingProviderId.TRAKT -> {
-                if (traktState.mode == TraktConnectionMode.CONNECTED) {
-                    dismissOnConnected = null
-                } else {
-                    dismissOnConnected = provider
-                    if (traktState.mode == TraktConnectionMode.DISCONNECTED && !traktState.isLoading) {
-                        traktViewModel.onConnectClick()
+        val requiresCredentials = when (provider) {
+            TrackingProviderId.TRAKT -> ServiceApi.TRAKT.takeUnless(apiViewModel.credentials::isConfigured)
+            TrackingProviderId.SIMKL -> ServiceApi.SIMKL.takeUnless(apiViewModel.credentials::isConfigured)
+            else -> null
+        }
+        if (requiresCredentials != null) {
+            configureProvider = requiresCredentials
+        } else {
+            activeProvider = provider
+            disconnectProvider = null
+            when (provider) {
+                TrackingProviderId.TRAKT -> {
+                    if (traktState.mode == TraktConnectionMode.CONNECTED) {
+                        dismissOnConnected = null
+                    } else {
+                        dismissOnConnected = provider
+                        if (traktState.mode == TraktConnectionMode.DISCONNECTED && !traktState.isLoading) {
+                            traktViewModel.onConnectClick()
+                        }
                     }
                 }
-            }
-            TrackingProviderId.SIMKL -> {
-                if (simklState.mode == SimklConnectionMode.CONNECTED) {
-                    dismissOnConnected = null
-                } else {
-                    dismissOnConnected = provider
-                    if (simklState.mode == SimklConnectionMode.DISCONNECTED && !simklState.isLoading) {
-                        simklViewModel.onConnect()
+                TrackingProviderId.SIMKL -> {
+                    if (simklState.mode == SimklConnectionMode.CONNECTED) {
+                        dismissOnConnected = null
+                    } else {
+                        dismissOnConnected = provider
+                        if (simklState.mode == SimklConnectionMode.DISCONNECTED && !simklState.isLoading) {
+                            simklViewModel.onConnect()
+                        }
                     }
                 }
-            }
-            TrackingProviderId.MDBLIST -> {
-                if (mdbListState.isConnected) {
-                    dismissOnConnected = null
-                    mdbListViewModel.onAccountOpened()
-                } else {
-                    dismissOnConnected = provider
-                    mdbListViewModel.onConnect()
+                TrackingProviderId.MDBLIST -> {
+                    if (mdbListState.isConnected) {
+                        dismissOnConnected = null
+                        mdbListViewModel.onAccountOpened()
+                    } else {
+                        dismissOnConnected = provider
+                        mdbListViewModel.onConnect()
+                    }
                 }
-            }
-            TrackingProviderId.FLOPPY -> {
-                dismissOnConnected = if (floppyState.isConnected) null else provider
-                floppyState.session?.takeUnless { floppyState.isConnected }?.let { floppyViewModel.onConnect(it.serverUrl) }
-            }
-            TrackingProviderId.WETRAKR -> {
-                if (weTrakrState.isConnected) {
-                    dismissOnConnected = null
-                    weTrakrViewModel.onAccountOpened()
-                } else {
-                    dismissOnConnected = provider
-                    weTrakrViewModel.onConnect()
+                TrackingProviderId.FLOPPY -> {
+                    dismissOnConnected = if (floppyState.isConnected) null else provider
+                    floppyState.session?.takeUnless { floppyState.isConnected }?.let { floppyViewModel.onConnect(it.serverUrl) }
+                }
+                TrackingProviderId.WETRAKR -> {
+                    if (weTrakrState.isConnected) {
+                        dismissOnConnected = null
+                        weTrakrViewModel.onAccountOpened()
+                    } else {
+                        dismissOnConnected = provider
+                        weTrakrViewModel.onConnect()
+                    }
                 }
             }
         }
@@ -245,6 +257,14 @@ internal fun TrackingSettingsContent(
         continueWatchingFocusRequester = continueWatchingFocusRequester,
         moreLikeThisFocusRequester = moreLikeThisFocusRequester,
         onTraktClick = { openProvider(TrackingProviderId.TRAKT) },
+        onTraktKeys = if (apiViewModel.credentials.canConfigure(ServiceApi.TRAKT) &&
+            traktState.mode == TraktConnectionMode.DISCONNECTED && !traktState.isLoading) {
+            { restoreFocusTarget = TrackingFocusTarget.TRAKT; configureProvider = ServiceApi.TRAKT }
+        } else null,
+        onSimklKeys = if (apiViewModel.credentials.canConfigure(ServiceApi.SIMKL) &&
+            simklState.mode == SimklConnectionMode.DISCONNECTED && !simklState.isLoading) {
+            { restoreFocusTarget = TrackingFocusTarget.SIMKL; configureProvider = ServiceApi.SIMKL }
+        } else null,
         onSimklClick = { openProvider(TrackingProviderId.SIMKL) },
         onMdbListClick = { openProvider(TrackingProviderId.MDBLIST) },
         onWeTrakrClick = { openProvider(TrackingProviderId.WETRAKR) },
@@ -280,6 +300,13 @@ internal fun TrackingSettingsContent(
             showMdbListLibraryListsDialog = true
         }
     )
+
+    configureProvider?.let { service ->
+        ServiceApiCredentialsDialog(service, onDismiss = { configureProvider = null }, onSaved = {
+            configureProvider = null
+            openProvider(if (service == ServiceApi.TRAKT) TrackingProviderId.TRAKT else TrackingProviderId.SIMKL)
+        }, viewModel = apiViewModel)
+    }
 
     when (activeProvider) {
         TrackingProviderId.TRAKT -> {
@@ -635,7 +662,9 @@ internal fun TrackingSettingsOverview(
     onMoreLikeThisClick: () -> Unit,
     onAnimeIdClick: () -> Unit,
     mdbListLibraryLists: MdbListLibraryListsUiState = MdbListLibraryListsUiState(),
-    onMdbListLibraryListsClick: () -> Unit = {}
+    onMdbListLibraryListsClick: () -> Unit = {},
+    onTraktKeys: (() -> Unit)? = null,
+    onSimklKeys: (() -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     val traktPresentation = traktConnectionPresentation(traktState)
@@ -682,6 +711,13 @@ internal fun TrackingSettingsOverview(
                                     .focusRequester(traktFocusRequester)
                                     .testTag(TrackingSettingsTestTags.TRAKT_PROVIDER)
                             )
+                            onTraktKeys?.let { onClick ->
+                                SettingsActionRow(
+                                    title = stringResource(R.string.service_api_title, stringResource(R.string.trakt_name)),
+                                    subtitle = null,
+                                    onClick = onClick
+                                )
+                            }
                             SettingsActionRow(
                                 title = stringResource(R.string.simkl_name),
                                 subtitle = simklPresentation.subtitle,
@@ -694,6 +730,13 @@ internal fun TrackingSettingsOverview(
                                     .focusRequester(simklFocusRequester)
                                     .testTag(TrackingSettingsTestTags.SIMKL_PROVIDER)
                             )
+                            onSimklKeys?.let { onClick ->
+                                SettingsActionRow(
+                                    title = stringResource(R.string.service_api_title, stringResource(R.string.simkl_name)),
+                                    subtitle = null,
+                                    onClick = onClick
+                                )
+                            }
                             SettingsActionRow(
                                 title = stringResource(R.string.mdblist_name),
                                 subtitle = mdbListPresentation.subtitle,

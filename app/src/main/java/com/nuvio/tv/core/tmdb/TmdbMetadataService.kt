@@ -1425,6 +1425,7 @@ class TmdbMetadataService(
         // Map codes unsupported by TMDB to their closest equivalent
         return when (normalized) {
             "es-419" -> "es-MX"
+            "fr" -> "fr-FR"
             else -> normalized
         }
     }

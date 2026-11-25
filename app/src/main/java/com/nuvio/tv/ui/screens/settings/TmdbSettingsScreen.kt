@@ -28,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import com.nuvio.tv.R
+import com.nuvio.tv.core.config.ServiceApi
 import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.data.local.AVAILABLE_TMDB_LANGUAGES
 import com.nuvio.tv.data.local.displayName
@@ -54,6 +55,9 @@ fun TmdbSettingsContent(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showLanguageDialog by remember { mutableStateOf(false) }
+    val apiViewModel = hiltViewModel<ServiceApiCredentialsViewModel>()
+    var editApiKey by remember { mutableStateOf(false) }
+    var apiConfigured by remember { mutableStateOf(apiViewModel.credentials.isConfigured(ServiceApi.TMDB)) }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -92,6 +96,15 @@ fun TmdbSettingsContent(
                                 } else {
                                     Modifier
                                 })
+                    )
+                }
+
+                if (apiViewModel.credentials.canConfigure(ServiceApi.TMDB)) item(key = "tmdb_api_key") {
+                    SettingsActionRow(
+                        title = stringResource(R.string.service_api_tmdb_key),
+                        subtitle = stringResource(R.string.service_api_tmdb_help),
+                        value = stringResource(if (apiConfigured) R.string.service_api_configured else R.string.service_api_required),
+                        onClick = { editApiKey = true }
                     )
                 }
 
@@ -257,6 +270,12 @@ fun TmdbSettingsContent(
         }
     }
 
+    if (editApiKey) {
+        ServiceApiCredentialsDialog(ServiceApi.TMDB, onDismiss = { editApiKey = false }, onSaved = {
+            apiConfigured = true
+            editApiKey = false
+        }, viewModel = apiViewModel)
+    }
     if (showLanguageDialog) {
         LanguageSelectionDialog(
             title = stringResource(R.string.tmdb_language_dialog_title),

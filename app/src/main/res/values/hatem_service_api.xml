@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_api_title">%1$s API credentials</string>
+    <string name="service_api_tmdb_key">TMDB API key</string>
+    <string name="service_api_client_id">Client ID</string>
+    <string name="service_api_client_secret">Client Secret</string>
+    <string name="service_api_tmdb_help">Enter your TMDB v3 API key from your account settings to load translated metadata.</string>
+    <string name="service_api_trakt_help">Enter the Client ID and Client Secret of your Trakt API application with device activation enabled.</string>
+    <string name="service_api_simkl_help">Enter the Client ID of your SIMKL API application.</string>
+    <string name="service_api_invalid_tmdb">TMDB rejected the key. Check that you copied the v3 API key.</string>
+    <string name="service_api_unavailable">Could not verify or save the credentials. Try again.</string>
+    <string name="service_api_configured">Saved</string>
+    <string name="service_api_required">Required</string>
+    <string name="service_api_saving">Saving…</string>
+</resources>

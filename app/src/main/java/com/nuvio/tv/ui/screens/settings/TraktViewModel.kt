@@ -126,7 +126,7 @@ class TraktViewModel @Inject constructor(
         // clicks can't both observe isLoading == false and start parallel
         // coroutines (thanks Copilot).
         if (connectJob?.isActive == true || _uiState.value.isLoading) return
-        _uiState.update { it.copy(isLoading = true, errorMessage = null, statusMessage = null) }
+        _uiState.update { it.copy(isLoading = true, errorMessage = null, statusMessage = null, credentialsConfigured = true) }
 
         connectJob = viewModelScope.launch {
             try {

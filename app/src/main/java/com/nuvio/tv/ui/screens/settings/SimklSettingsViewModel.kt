@@ -108,7 +108,7 @@ class SimklSettingsViewModel @Inject constructor(
             }
             return
         }
-        _uiState.update { it.copy(isLoading = true, errorMessage = null, statusMessage = null) }
+        _uiState.update { it.copy(isLoading = true, errorMessage = null, statusMessage = null, credentialsConfigured = true) }
         connectJob = viewModelScope.launch {
             try {
                 authRepository.startPinAuth()

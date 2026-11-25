@@ -3,6 +3,7 @@ package com.nuvio.tv.core.di
 import android.content.Context
 import android.util.Log
 import com.nuvio.tv.BuildConfig
+import com.nuvio.tv.core.config.ServiceApiCredentials
 import com.nuvio.tv.core.network.NoDelaySocketFactory
 import com.nuvio.tv.core.network.ReportTransport
 import com.nuvio.tv.data.remote.api.AniSkipApi
@@ -302,7 +303,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideSimklApiConfiguration(): SimklApiConfiguration = defaultSimklApiConfiguration()
+    fun provideSimklApiConfiguration(credentials: ServiceApiCredentials): SimklApiConfiguration =
+        defaultSimklApiConfiguration { credentials.simklId }
 
     @Provides
     @Singleton
@@ -327,7 +329,8 @@ object NetworkModule {
     @Singleton
     @Named("trakt")
     fun provideTraktOkHttpClient(
-        @Named("validated") okHttpClient: OkHttpClient
+        @Named("validated") okHttpClient: OkHttpClient,
+        credentials: ServiceApiCredentials
     ): OkHttpClient = okHttpClient.newBuilder()
         .addInterceptor { chain ->
             val request = chain.request()
@@ -335,7 +338,7 @@ object NetworkModule {
             val newRequest = request.newBuilder()
                 .header("Content-Type", "application/json")
                 .header("User-Agent", "Nuvio/$version")
-                .header("trakt-api-key", BuildConfig.TRAKT_CLIENT_ID)
+                .header("trakt-api-key", credentials.traktId)
                 .header("trakt-api-version", "2")
                 .build()
 
@@ -401,11 +404,20 @@ object NetworkModule {
     @Named("tmdb")
     fun provideTmdbRetrofit(
         @Named("validated") okHttpClient: OkHttpClient,
-        moshi: Moshi
+        moshi: Moshi,
+        credentials: ServiceApiCredentials
     ): Retrofit =
         Retrofit.Builder()
             .baseUrl("https://api.themoviedb.org/3/")
-            .client(okHttpClient)
+            .client(okHttpClient.newBuilder().addInterceptor { chain ->
+                val request = chain.request()
+                val url = request.url
+                val key = if (url.isHttps && url.host == "api.themoviedb.org" &&
+                    url.queryParameter("api_key").isNullOrBlank()) credentials.tmdbKey else ""
+                if (key.isBlank()) chain.proceed(request) else chain.proceed(
+                    request.newBuilder().url(url.newBuilder().setQueryParameter("api_key", key).build()).build()
+                )
+            }.build())
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
 

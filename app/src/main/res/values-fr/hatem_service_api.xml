@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_api_title">Identifiants API %1$s</string>
+    <string name="service_api_tmdb_key">Clé API TMDB</string>
+    <string name="service_api_client_id">Client ID</string>
+    <string name="service_api_client_secret">Client Secret</string>
+    <string name="service_api_tmdb_help">Saisis la clé API v3 de ton compte TMDB pour charger les métadonnées traduites.</string>
+    <string name="service_api_trakt_help">Saisis le Client ID et le Client Secret de ton application API Trakt avec activation par code.</string>
+    <string name="service_api_simkl_help">Saisis le Client ID de ton application API SIMKL.</string>
+    <string name="service_api_invalid_tmdb">TMDB a refusé la clé. Vérifie que tu as copié la clé API v3.</string>
+    <string name="service_api_unavailable">Impossible de vérifier ou d’enregistrer les identifiants. Réessaie.</string>
+    <string name="service_api_configured">Enregistrée</string>
+    <string name="service_api_required">Requise</string>
+    <string name="service_api_saving">Enregistrement…</string>
+</resources>

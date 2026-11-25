@@ -42,14 +42,18 @@ jobs:
           --tests 'com.nuvio.tv.ui.screens.player.LegacyLivePlayer*'
           --tests 'com.nuvio.tv.AppRootRoutesTest'
           --tests 'com.nuvio.tv.updater.*'
-          -PhatemUniversalApk=true -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.1 --stacktrace
+          --tests 'com.nuvio.tv.core.tmdb.TmdbMetadataServiceTest'
+          --tests 'com.nuvio.tv.data.repository.TraktAuthServiceTest'
+          --tests 'com.nuvio.tv.data.simkl.SimklApiClientTest'
+          --tests 'com.nuvio.tv.data.simkl.SimklAuthRepositoryTest'
+          -ParcVersionCode=1569 -PhatemUniversalApk=true -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.2 --stacktrace
       - name: Compile Android tests and assemble the universal APK
         run: |
           ./gradlew :app:compileFullDebugAndroidTestKotlin :app:assembleFullDebug \
-            -PhatemUniversalApk=true -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.1 --stacktrace
-          cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.1.apk
+            -ParcVersionCode=1569 -PhatemUniversalApk=true -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.2 --stacktrace
+          cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.2.apk
       - uses: actions/upload-artifact@v7
         with:
           name: Hatem-Multi-Media-ARC-MiBox
-          path: Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.1.apk
+          path: Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.2.apk
           if-no-files-found: error
