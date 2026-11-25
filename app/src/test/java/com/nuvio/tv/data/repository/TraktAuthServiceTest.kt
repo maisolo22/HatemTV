@@ -1,12 +1,14 @@
 package com.nuvio.tv.data.repository
 
 import android.content.Context
+import com.nuvio.tv.core.config.ServiceApiCredentials
 import com.nuvio.tv.data.local.AuthSessionNoticeDataStore
 import com.nuvio.tv.data.local.TraktAuthDataStore
 import com.nuvio.tv.data.local.TraktAuthState
 import com.nuvio.tv.data.remote.api.TraktApi
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.currentTime
@@ -36,7 +38,8 @@ class TraktAuthServiceTest {
             context = mockk<Context>(relaxed = true),
             traktApi = traktApi,
             traktAuthDataStore = traktAuthDataStore,
-            authSessionNoticeDataStore = authSessionNoticeDataStore
+            authSessionNoticeDataStore = authSessionNoticeDataStore,
+            apiCredentials = registeredApp()
         )
 
         assertFalse(service.refreshTokenIfNeeded(force = true))
@@ -44,7 +47,9 @@ class TraktAuthServiceTest {
         assertFalse(service.refreshTokenIfNeeded(force = true))
 
         // A rejected refresh is retried once, two seconds later, before the credentials are cleared.
-        coVerify(exactly = 2) { traktApi.refreshToken(any()) }
+        coVerify(exactly = 2) { traktApi.refreshToken(match {
+            it.clientId == "test-client-id" && it.clientSecret == "test-client-secret"
+        }) }
         coVerify(exactly = 1) { authSessionNoticeDataStore.markTraktReconnectRequired() }
         coVerify(exactly = 1) { traktAuthDataStore.clearAuth() }
     }
@@ -83,15 +88,23 @@ class TraktAuthServiceTest {
             context = mockk<Context>(relaxed = true),
             traktApi = traktApi,
             traktAuthDataStore = traktAuthDataStore,
-            authSessionNoticeDataStore = authSessionNoticeDataStore
+            authSessionNoticeDataStore = authSessionNoticeDataStore,
+            apiCredentials = registeredApp()
         )
 
         assertFalse(service.refreshTokenIfNeeded(force = true))
         assertFalse(service.refreshTokenIfNeeded(force = true))
 
-        coVerify(exactly = 2) { traktApi.refreshToken(any()) }
+        coVerify(exactly = 2) { traktApi.refreshToken(match {
+            it.clientId == "test-client-id" && it.clientSecret == "test-client-secret"
+        }) }
         coVerify(exactly = 0) { authSessionNoticeDataStore.markTraktReconnectRequired() }
         coVerify(exactly = 0) { traktAuthDataStore.clearAuth() }
+    }
+
+    private fun registeredApp(): ServiceApiCredentials = mockk {
+        every { traktId } returns "test-client-id"
+        every { traktSecret } returns "test-client-secret"
     }
 
     private fun authenticatedState(): TraktAuthState {
