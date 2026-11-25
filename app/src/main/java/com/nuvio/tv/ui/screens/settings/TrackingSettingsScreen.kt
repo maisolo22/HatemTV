@@ -181,13 +181,8 @@ internal fun TrackingSettingsContent(
             TrackingProviderId.FLOPPY -> TrackingFocusTarget.FLOPPY
             TrackingProviderId.WETRAKR -> TrackingFocusTarget.WETRAKR
         }
-        val requiresCredentials = when (provider) {
-            TrackingProviderId.TRAKT -> ServiceApi.TRAKT.takeUnless(apiViewModel.credentials::isConfigured)
-            TrackingProviderId.SIMKL -> ServiceApi.SIMKL.takeUnless(apiViewModel.credentials::isConfigured)
-            else -> null
-        }
-        if (requiresCredentials != null) {
-            configureProvider = requiresCredentials
+        if (provider == TrackingProviderId.SIMKL && !apiViewModel.credentials.isConfigured(ServiceApi.SIMKL)) {
+            configureProvider = ServiceApi.SIMKL
         } else {
             activeProvider = provider
             disconnectProvider = null
@@ -257,10 +252,6 @@ internal fun TrackingSettingsContent(
         continueWatchingFocusRequester = continueWatchingFocusRequester,
         moreLikeThisFocusRequester = moreLikeThisFocusRequester,
         onTraktClick = { openProvider(TrackingProviderId.TRAKT) },
-        onTraktKeys = if (apiViewModel.credentials.canConfigure(ServiceApi.TRAKT) &&
-            traktState.mode == TraktConnectionMode.DISCONNECTED && !traktState.isLoading) {
-            { restoreFocusTarget = TrackingFocusTarget.TRAKT; configureProvider = ServiceApi.TRAKT }
-        } else null,
         onSimklKeys = if (apiViewModel.credentials.canConfigure(ServiceApi.SIMKL) &&
             simklState.mode == SimklConnectionMode.DISCONNECTED && !simklState.isLoading) {
             { restoreFocusTarget = TrackingFocusTarget.SIMKL; configureProvider = ServiceApi.SIMKL }
@@ -304,7 +295,7 @@ internal fun TrackingSettingsContent(
     configureProvider?.let { service ->
         ServiceApiCredentialsDialog(service, onDismiss = { configureProvider = null }, onSaved = {
             configureProvider = null
-            openProvider(if (service == ServiceApi.TRAKT) TrackingProviderId.TRAKT else TrackingProviderId.SIMKL)
+            openProvider(TrackingProviderId.SIMKL)
         }, viewModel = apiViewModel)
     }
 
@@ -663,7 +654,6 @@ internal fun TrackingSettingsOverview(
     onAnimeIdClick: () -> Unit,
     mdbListLibraryLists: MdbListLibraryListsUiState = MdbListLibraryListsUiState(),
     onMdbListLibraryListsClick: () -> Unit = {},
-    onTraktKeys: (() -> Unit)? = null,
     onSimklKeys: (() -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
@@ -711,13 +701,6 @@ internal fun TrackingSettingsOverview(
                                     .focusRequester(traktFocusRequester)
                                     .testTag(TrackingSettingsTestTags.TRAKT_PROVIDER)
                             )
-                            onTraktKeys?.let { onClick ->
-                                SettingsActionRow(
-                                    title = stringResource(R.string.service_api_title, stringResource(R.string.trakt_name)),
-                                    subtitle = null,
-                                    onClick = onClick
-                                )
-                            }
                             SettingsActionRow(
                                 title = stringResource(R.string.simkl_name),
                                 subtitle = simklPresentation.subtitle,

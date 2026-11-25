@@ -13,6 +13,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify ARC Trakt build credentials
+        env:
+          LOCAL_PROPERTIES_BASE64: ${{ secrets.LOCAL_PROPERTIES_BASE64 }}
+          LOCAL_DEV_PROPERTIES_BASE64: ${{ secrets.LOCAL_DEV_PROPERTIES_BASE64 }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+        run: |
+          umask 077
+          printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
+          printf '%s' "$LOCAL_DEV_PROPERTIES_BASE64" | base64 --decode > local.dev.properties
+          if [[ -n "$TRAKT_CLIENT_ID" || -n "$TRAKT_CLIENT_SECRET" ]]; then
+            if [[ ! "$TRAKT_CLIENT_ID" =~ ^[A-Za-z0-9_-]+$ || ! "$TRAKT_CLIENT_SECRET" =~ ^[A-Za-z0-9_-]+$ ]]; then
+              echo '::error::Configure both Trakt repository secrets with valid application credentials.'
+              exit 1
+            fi
+            sed -i -E '/^[[:space:]]*TRAKT_CLIENT_(ID|SECRET)[[:space:]]*=/d' local.properties
+            printf '\nTRAKT_CLIENT_ID=%s\nTRAKT_CLIENT_SECRET=%s\n' "$TRAKT_CLIENT_ID" "$TRAKT_CLIENT_SECRET" >> local.properties
+          fi
+          for property in TRAKT_CLIENT_ID TRAKT_CLIENT_SECRET; do
+            if ! grep -Eq "^[[:space:]]*$property[[:space:]]*=[[:space:]]*[^[:space:]]" local.properties; then
+              echo '::error::ARC automatic Trakt activation needs TRAKT_CLIENT_ID and TRAKT_CLIENT_SECRET.'
+              exit 1
+            fi
+          done
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -22,29 +46,22 @@ jobs:
         with:
           path: ~/.android/debug.keystore
           key: hatem-arc-debug-signing-v1
-      - name: Prepare ARC build properties
-        env:
-          LOCAL_PROPERTIES_BASE64: ${{ secrets.LOCAL_PROPERTIES_BASE64 }}
-          LOCAL_DEV_PROPERTIES_BASE64: ${{ secrets.LOCAL_DEV_PROPERTIES_BASE64 }}
-        run: |
-          printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
-          printf '%s' "$LOCAL_DEV_PROPERTIES_BASE64" | base64 --decode > local.dev.properties
-          if [ ! -s "$HOME/.android/debug.keystore" ]; then
-            echo "The existing Hatem ARC signing keystore is required. Refusing to generate a replacement."
-            exit 1
-          fi
       - name: Build ARM APKs and sign with the fixed certificate
         run: |
+          if [ ! -s "$HOME/.android/debug.keystore" ]; then
+            echo '::error::The existing Hatem ARC signing keystore is required.'
+            exit 1
+          fi
           expected_cert=$(keytool -exportcert -keystore "$HOME/.android/debug.keystore" \
             -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f 1)
           test "$expected_cert" = 60d2d0a81782f6b06459db600ca68179dd4502d7fc9350ab45c9dab6dfa859f9
           ./gradlew :app:compileFullDebugAndroidTestKotlin :app:assembleFullDebug \
             "-PhatemArcLauncherLabel=Hatem Multi Media ARC" \
-            -ParcVersionCode=1570 -PnuvioAppIdSuffix=.hatemarcstable -ParcVersionName=1.1.0-nt.9.2-hatem.3 --stacktrace
+            -ParcVersionCode=1571 -PnuvioAppIdSuffix=.hatemarcstable -ParcVersionName=1.1.0-nt.9.2-hatem.4 --stacktrace
           apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
           for abi in armeabi-v7a arm64-v8a; do
             unsigned_source="app/build/outputs/apk/full/debug/app-full-$abi-debug.apk"
-            output_apk="Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.3-$abi.apk"
+            output_apk="Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.4-$abi.apk"
             "$apksigner" sign --ks "$HOME/.android/debug.keystore" --ks-pass pass:android \
               --key-pass pass:android --ks-key-alias androiddebugkey --out "$output_apk" "$unsigned_source"
             verification=$("$apksigner" verify --print-certs "$output_apk")
@@ -58,5 +75,5 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: Hatem-Multi-Media-ARC-MiBox-ARM
-          path: Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.3-*.apk
+          path: Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.4-*.apk
           if-no-files-found: error
