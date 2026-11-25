@@ -128,6 +128,8 @@ android {
 
     defaultConfig {
         applicationId = "com.nuvio.tv.test"
+        manifestPlaceholders["hatemArcLauncherLabel"] = providers.gradleProperty("hatemArcLauncherLabel")
+            .orElse("@string/app_name").get()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 24
         targetSdk = 36
@@ -221,6 +223,9 @@ android {
     }
 
     signingConfigs {
+        providers.gradleProperty("hatemArcSigningKeyPath").orNull?.let { keyPath ->
+            getByName("debug").storeFile = file(keyPath)
+        }
         create("release") {
             keyAlias = releaseKeyAliasValue
             keyPassword = releaseKeyPasswordValue
