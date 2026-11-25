@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify ARC Trakt build credentials
         env:
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
           LOCAL_PROPERTIES_BASE64: ${{ secrets.LOCAL_PROPERTIES_BASE64 }}
           LOCAL_DEV_PROPERTIES_BASE64: ${{ secrets.LOCAL_DEV_PROPERTIES_BASE64 }}
           TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
@@ -37,6 +38,10 @@ jobs:
               exit 1
             fi
           done
+          if [[ "$REPOSITORY_PRIVATE" != true ]]; then
+            echo '::error::An APK containing Trakt application credentials must be built and kept private.'
+            exit 1
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
