@@ -50,24 +50,26 @@ import retrofit2.http.Path
 import retrofit2.http.PUT
 import retrofit2.http.Query
 
+private const val TRAKT_OAUTH_URL = "https://auth.trakt.tv/oauth"
+
 interface TraktApi {
 
-    @POST("oauth/device/code")
+    @POST("$TRAKT_OAUTH_URL/device/code")
     suspend fun requestDeviceCode(
         @Body body: TraktDeviceCodeRequestDto
     ): Response<TraktDeviceCodeResponseDto>
 
-    @POST("oauth/device/token")
+    @POST("$TRAKT_OAUTH_URL/device/token")
     suspend fun requestDeviceToken(
         @Body body: TraktDeviceTokenRequestDto
     ): Response<TraktTokenResponseDto>
 
-    @POST("oauth/token")
+    @POST("$TRAKT_OAUTH_URL/token")
     suspend fun refreshToken(
         @Body body: TraktRefreshTokenRequestDto
     ): Response<TraktTokenResponseDto>
 
-    @POST("oauth/revoke")
+    @POST("$TRAKT_OAUTH_URL/revoke")
     suspend fun revokeToken(
         @Body body: TraktRevokeRequestDto
     ): Response<Unit>
