@@ -46,14 +46,17 @@ jobs:
           --tests 'com.nuvio.tv.data.repository.TraktAuthServiceTest'
           --tests 'com.nuvio.tv.data.simkl.SimklApiClientTest'
           --tests 'com.nuvio.tv.data.simkl.SimklAuthRepositoryTest'
-          -ParcVersionCode=1569 -PhatemUniversalApk=true -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.2 --stacktrace
-      - name: Compile Android tests and assemble the universal APK
+          -ParcVersionCode=1569 -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.2 --stacktrace
+      - name: Compile Android tests and assemble ARM APKs
         run: |
           ./gradlew :app:compileFullDebugAndroidTestKotlin :app:assembleFullDebug \
-            -ParcVersionCode=1569 -PhatemUniversalApk=true -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.2 --stacktrace
-          cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.2.apk
+            -ParcVersionCode=1569 -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.2 --stacktrace
+          for abi in armeabi-v7a arm64-v8a; do
+            cp "app/build/outputs/apk/full/debug/app-full-$abi-debug.apk" \
+              "Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.2-$abi.apk"
+          done
       - uses: actions/upload-artifact@v7
         with:
-          name: Hatem-Multi-Media-ARC-MiBox
-          path: Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.2.apk
+          name: Hatem-Multi-Media-ARC-MiBox-ARM
+          path: Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.2-*.apk
           if-no-files-found: error
