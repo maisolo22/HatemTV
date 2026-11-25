@@ -16,6 +16,7 @@ import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.Typeface
 import androidx.core.graphics.PathParser
 import com.nuvio.tv.R
 import java.util.concurrent.CancellationException
@@ -170,7 +171,7 @@ class ArcIgnitionScene private constructor(
         glow(canvas, SourceX, SourceY, 72f, chargeAmount * 0.12f * content, 0x538BDF, screenGlowPaint)
 
         plainPaint.alpha = (smooth((clock - 0.8f) / 1.3f) * content * 255).toInt()
-        placeArt(lettering, LetterLeft, LetterTop, LetterWidth, LetterWidth * lettering.height / lettering.width)
+        placeArt(lettering, LetterLeft, LetterTop, LetterWidth, LetterHeight)
         canvas.drawBitmap(lettering, null, dst, plainPaint)
         canvas.restoreToCount(outer)
     }
@@ -455,6 +456,7 @@ class ArcIgnitionScene private constructor(
         private const val LightMargin = 160f
         private const val LetterTop = 720f
         private const val LetterWidth = 686f
+        private const val LetterHeight = 86f
         private const val SampleCount = 481
         private val Backdrop = Color.rgb(3, 5, 10)
 
@@ -497,7 +499,7 @@ class ArcIgnitionScene private constructor(
             keepGoing: () -> Boolean = { true }
         ): ArcIgnitionScene {
             val options = BitmapFactory.Options().apply { inScaled = false; inPreferredConfig = Bitmap.Config.ARGB_8888 }
-            fun art(id: Int, recolor: Boolean, stageWidth: Float, sharpen: Boolean): Bitmap {
+            fun art(id: Int, recolor: Boolean, stageWidth: Float): Bitmap {
                 if (!keepGoing()) throw CancellationException("no longer wanted")
                 val decoded = BitmapFactory.decodeResource(resources, id, options)
                 val sw = decoded.width
@@ -514,19 +516,48 @@ class ArcIgnitionScene private constructor(
                     pixels = ArcPixels.areaResample(pixels, sw, sh, w, h)
                 }
                 if (recolor && !palette.isOriginal) palette.mapPixels(pixels)
-                if (sharpen) ArcPixels.sharpen(pixels, w, h)
                 return Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888).also { it.prepareToDraw() }
             }
             val glass = palette == ArcPalette.Glass
             return ArcIgnitionScene(
-                logoPlate = if (glass) art(R.drawable.arc_intro_logo_plate_glass, recolor = false, LogoSize, sharpen = false)
-                    else art(R.drawable.arc_intro_logo_plate, recolor = true, LogoSize, sharpen = false),
-                litPlate = art(R.drawable.arc_intro_lit_plate, recolor = true, LogoSize, sharpen = false),
-                lettering = art(R.drawable.arc_intro_lettering, recolor = false, LetterWidth, sharpen = true),
+                logoPlate = if (glass) art(R.drawable.arc_intro_logo_plate_glass, recolor = false, LogoSize)
+                    else art(R.drawable.arc_intro_logo_plate, recolor = true, LogoSize),
+                litPlate = art(R.drawable.arc_intro_lit_plate, recolor = true, LogoSize),
+                lettering = createLettering(pixelScale),
                 palette = palette,
                 glassPlate = glass,
                 pixelScale = pixelScale
             )
+        }
+
+        private fun createLettering(pixelScale: Float): Bitmap {
+            val width = max(1, (LetterWidth * pixelScale).roundToInt())
+            val height = max(1, (LetterHeight * pixelScale).roundToInt())
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                textSize = 100f
+                typeface = Typeface.create("sans-serif-black", Typeface.NORMAL)
+            }
+            val title = "HATEM"
+            val suffix = "server"
+            val wordmark = Path()
+            paint.getTextPath(title, 0, title.length, 0f, 0f, wordmark)
+            val suffixStart = paint.measureText(title) + paint.textSize * 0.24f
+            paint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            val suffixPath = Path()
+            paint.getTextPath(suffix, 0, suffix.length, suffixStart, 0f, suffixPath)
+            wordmark.addPath(suffixPath)
+            val bounds = RectF()
+            wordmark.computeBounds(bounds, true)
+            val scale = min(width / bounds.width(), height / bounds.height())
+            return Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
+                val canvas = Canvas(bitmap)
+                canvas.translate(width / 2f, height / 2f)
+                canvas.scale(scale, scale)
+                canvas.translate(-bounds.centerX(), -bounds.centerY())
+                canvas.drawPath(wordmark, paint)
+                bitmap.prepareToDraw()
+            }
         }
 
         private fun path(data: String): Path = PathParser.createPathFromPathData(data)
