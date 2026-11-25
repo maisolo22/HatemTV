@@ -22,7 +22,7 @@ class ServiceApiCredentials @Inject constructor(@ApplicationContext context: Con
 
     internal fun canConfigure(service: ServiceApi): Boolean = when (service) {
         ServiceApi.TMDB -> BuildConfig.TMDB_API_KEY.isBlank()
-        ServiceApi.TRAKT -> BuildConfig.TRAKT_CLIENT_ID.isBlank() || BuildConfig.TRAKT_CLIENT_SECRET.isBlank()
+        ServiceApi.TRAKT -> BuildConfig.TRAKT_CLIENT_ID.isBlank()
         ServiceApi.SIMKL -> BuildConfig.SIMKL_CLIENT_ID.isBlank()
     }
 

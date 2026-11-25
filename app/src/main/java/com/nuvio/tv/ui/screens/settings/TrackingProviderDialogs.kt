@@ -134,7 +134,7 @@ internal fun TraktAccountDialog(
                 credentialsConfigured = state.credentialsConfigured,
                 statusMessage = state.statusMessage,
                 errorMessage = state.errorMessage,
-                missingCredentialsMessage = stringResource(R.string.trakt_missing_credentials),
+                missingCredentialsMessage = stringResource(R.string.trakt_error_missing_credentials),
                 onStartConnection = onStartConnection,
                 onRetryPolling = onRetryPolling,
                 onDismiss = onDismiss

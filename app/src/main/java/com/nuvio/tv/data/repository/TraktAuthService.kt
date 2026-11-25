@@ -44,7 +44,8 @@ class TraktAuthService @Inject constructor(
     private val apiCredentials: ServiceApiCredentials? = null
 ) {
     private val clientId: String get() = apiCredentials?.traktId ?: BuildConfig.TRAKT_CLIENT_ID
-    private val clientSecret: String get() = apiCredentials?.traktSecret ?: BuildConfig.TRAKT_CLIENT_SECRET
+    private val clientSecret: String?
+        get() = (apiCredentials?.traktSecret ?: BuildConfig.TRAKT_CLIENT_SECRET).takeIf { it.isNotBlank() }
 
     private val refreshLeewaySeconds = 60L
     private val refreshFatalRetryDelayMs = 2_000L
@@ -124,7 +125,7 @@ class TraktAuthService @Inject constructor(
     }
 
     fun hasRequiredCredentials(): Boolean {
-        return clientId.isNotBlank() && clientSecret.isNotBlank()
+        return clientId.isNotBlank()
     }
 
     suspend fun getCurrentAuthState(): TraktAuthState = traktAuthDataStore.getCurrentState()
