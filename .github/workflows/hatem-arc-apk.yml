@@ -42,11 +42,11 @@ jobs:
           --tests 'com.nuvio.tv.ui.screens.player.LegacyLivePlayer*'
           --tests 'com.nuvio.tv.AppRootRoutesTest'
           --tests 'com.nuvio.tv.updater.*'
-          -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.1 --stacktrace
+          -PhatemUniversalApk=true -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.1 --stacktrace
       - name: Compile Android tests and assemble the universal APK
         run: |
           ./gradlew :app:compileFullDebugAndroidTestKotlin :app:assembleFullDebug \
-            -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.1 --stacktrace
+            -PhatemUniversalApk=true -PnuvioAppIdSuffix=.hatemarc -ParcVersionName=1.1.0-nt.9.2-hatem.1 --stacktrace
           cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.1.apk
       - uses: actions/upload-artifact@v7
         with:

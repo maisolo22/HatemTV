@@ -313,7 +313,7 @@ android {
             isEnable = !buildingAppBundle
             reset()
             include("armeabi-v7a", "arm64-v8a")
-            isUniversalApk = false
+            isUniversalApk = providers.gradleProperty("hatemUniversalApk").orNull == "true"
         }
     }
 
