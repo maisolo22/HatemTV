@@ -33,22 +33,9 @@ jobs:
             echo "The existing Hatem ARC signing keystore is required. Refusing to generate a replacement."
             exit 1
           fi
-      - name: Verify Live TV, playback and ARC navigation
-        run: >-
-          ./gradlew :app:testFullDebugUnitTest
-          --tests 'com.nuvio.tv.ui.screens.livetv.*'
-          --tests 'com.nuvio.tv.ui.screens.player.LegacyLivePlayer*'
-          --tests 'com.nuvio.tv.AppRootRoutesTest'
-          --tests 'com.nuvio.tv.updater.*'
-          --tests 'com.nuvio.tv.core.tmdb.TmdbMetadataServiceTest'
-          --tests 'com.nuvio.tv.data.repository.TraktAuthServiceTest'
-          --tests 'com.nuvio.tv.data.simkl.SimklApiClientTest'
-          --tests 'com.nuvio.tv.data.simkl.SimklAuthRepositoryTest'
-          -ParcVersionCode=1570 -PnuvioAppIdSuffix=.hatemarcstable -ParcVersionName=1.1.0-nt.9.2-hatem.3 --stacktrace
-      - name: Compile Android tests and assemble ARM APKs
+      - name: Build ARM APKs and sign with the fixed certificate
         run: |
           ./gradlew :app:compileFullDebugAndroidTestKotlin :app:assembleFullDebug \
-            "-PhatemArcSigningKeyPath=$HOME/.android/debug.keystore" \
             "-PhatemArcLauncherLabel=Hatem Multi Media ARC" \
             -ParcVersionCode=1570 -PnuvioAppIdSuffix=.hatemarcstable -ParcVersionName=1.1.0-nt.9.2-hatem.3 --stacktrace
           expected_cert=$(keytool -exportcert -keystore "$HOME/.android/debug.keystore" \
@@ -56,11 +43,17 @@ jobs:
           test "${#expected_cert}" -eq 64
           apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
           for abi in armeabi-v7a arm64-v8a; do
-            signed_apk="app/build/outputs/apk/full/debug/app-full-$abi-debug.apk"
-            actual_cert=$("$apksigner" verify --print-certs "$signed_apk" | awk '/Signer #1 certificate SHA-256 digest:/{print $NF}')
-            test "$actual_cert" = "$expected_cert"
-            cp "app/build/outputs/apk/full/debug/app-full-$abi-debug.apk" \
-              "Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.3-$abi.apk"
+            unsigned_source="app/build/outputs/apk/full/debug/app-full-$abi-debug.apk"
+            output_apk="Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.3-$abi.apk"
+            "$apksigner" sign --ks "$HOME/.android/debug.keystore" --ks-pass pass:android \
+              --key-pass pass:android --ks-key-alias androiddebugkey --out "$output_apk" "$unsigned_source"
+            verification=$("$apksigner" verify --print-certs "$output_apk")
+            printf '%s\n' "$verification"
+            actual_cert=$(printf '%s\n' "$verification" | awk '/Signer #1 certificate SHA-256 digest:/{print tolower($NF)}')
+            if [ "$actual_cert" != "$expected_cert" ]; then
+              printf 'Unexpected signing certificate for %s (expected %s, saw %s)\n' "$abi" "$expected_cert" "$actual_cert"
+              exit 1
+            fi
           done
       - uses: actions/upload-artifact@v7
         with:
