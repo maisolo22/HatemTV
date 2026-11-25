@@ -1,0 +1,12 @@
+<resources>
+    <string name="legacy_skin_title">Nuvio Legacy TV skin</string>
+    <string name="legacy_skin_subtitle">Side menu, fullscreen artwork and remote navigation. Turn off for the Cinema top bar.</string>
+    <string name="legacy_live_tv">Live TV</string>
+    <string name="legacy_addons">Addons</string>
+    <string name="legacy_tv_empty">No TV catalogs found. Install or enable an addon with live channels.</string>
+    <string name="legacy_tv_sources">Channel catalogs</string>
+    <string name="legacy_tv_retry">Retry</string>
+    <string name="legacy_tv_more">More channels</string>
+    <string name="legacy_tv_error">Unable to load this catalog. Check the addon and try again.</string>
+    <string name="legacy_tv_hint">Select a channel to choose its stream. Channel availability depends on your addons.</string>
+</resources>

@@ -250,11 +250,38 @@ fun PlayerScreen(
     onPlaybackErrorBack: () -> Unit = { onBackPress(null, null, null, false, false) },
     onPlaybackEnded: ((nextVideoId: String?, nextSeason: Int?, nextEpisode: Int?, exitReason: PlayerExitReason?) -> Unit)? = null,
     onPlayRecommendation: (PostPlayRecommendation, manualSelection: Boolean) -> Unit = { _, _ -> },
-    onOpenRecommendationDetails: (PostPlayRecommendation) -> Unit = {}
+    onOpenRecommendationDetails: (PostPlayRecommendation) -> Unit = {},
+    liveChannelRoute: Boolean = false,
+    onOpenLiveTVGuide: (() -> Unit)? = null
 ) {
     val savedUiState by viewModel.uiState.collectAsState()
     val isV2 = LocalV2Appearance.current != null
     val uiState = savedUiState.copy(controlLayout = com.nuvio.tv.data.local.PlayerControlLayout.effective(savedUiState.controlLayout, isV2))
+    val livePlayerModel = if (liveChannelRoute) hiltViewModel<LegacyLivePlayerViewModel>() else null
+    val livePlayerInfo = livePlayerModel?.let { it.uiState.collectAsState().value }
+    val explicitLiveChannel = livePlayerModel?.routeChannel?.takeIf {
+        uiState.currentVideoId.isNullOrBlank() || it.id == uiState.currentVideoId
+    }
+    val isLegacyChannel = explicitLiveChannel != null
+    val livePlayerChannel = explicitLiveChannel
+    val liveWakeGate = remember { LegacyLiveWakeGate() }
+    var liveMedia by remember(uiState.currentStreamUrl, uiState.internalPlayerEngine) { mutableStateOf(PlayerMediaInfo()) }
+    LaunchedEffect(livePlayerChannel, uiState.showControls) {
+        livePlayerModel?.bind(livePlayerChannel)
+        if (isLegacyChannel && uiState.showControls) livePlayerModel?.refresh()
+    }
+    LaunchedEffect(isLegacyChannel, uiState.showControls, uiState.currentStreamUrl, uiState.isBuffering,
+        uiState.internalPlayerEngine, uiState.selectedAudioTrackIndex) {
+        if (isLegacyChannel && uiState.showControls) {
+            while (true) { liveMedia = viewModel.playerMediaInfo(); delay(2000) }
+        }
+    }
+    LaunchedEffect(isLegacyChannel, uiState.showPauseOverlay) {
+        if (isLegacyChannel && uiState.showPauseOverlay) {
+            viewModel.onEvent(PlayerEvent.OnDismissPauseOverlay)
+            if (!viewModel.uiState.value.showControls) viewModel.onEvent(PlayerEvent.OnToggleControls)
+        }
+    }
     val playerBadges = rememberPlayerBadges(viewModel, uiState)
     PartyPlayerBinding(viewModel)
     val partyState by rememberPartyRuntime().state.collectAsState()
@@ -1228,6 +1255,36 @@ fun PlayerScreen(
                         return@onPreviewKeyEvent true
                     }
                 }
+                if (isLegacyChannel) {
+                    val native = keyEvent.nativeKeyEvent
+                    val key = when (native.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_LEFT -> LegacyLiveRemoteKey.LEFT
+                        KeyEvent.KEYCODE_DPAD_RIGHT -> LegacyLiveRemoteKey.RIGHT
+                        KeyEvent.KEYCODE_DPAD_UP -> LegacyLiveRemoteKey.UP
+                        KeyEvent.KEYCODE_DPAD_DOWN -> LegacyLiveRemoteKey.DOWN
+                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> LegacyLiveRemoteKey.CONFIRM
+                        KeyEvent.KEYCODE_INFO -> LegacyLiveRemoteKey.INFO
+                        KeyEvent.KEYCODE_MENU -> LegacyLiveRemoteKey.MENU
+                        else -> LegacyLiveRemoteKey.OTHER
+                    }
+                    val blocked = legacyLiveInputBlocked(uiState) || postPlayRecommendationState.isVisible || shouldConfirmNextEpisodeOnEnd
+                    when (liveWakeGate.key(key, native.action == KeyEvent.ACTION_DOWN, !uiState.showControls, blocked)) {
+                        LegacyLiveKeyAction.REVEAL -> {
+                            if (uiState.showPauseOverlay) viewModel.onEvent(PlayerEvent.OnDismissPauseOverlay)
+                            if (!viewModel.uiState.value.showControls) viewModel.onEvent(PlayerEvent.OnToggleControls)
+                            return@onPreviewKeyEvent true
+                        }
+                        LegacyLiveKeyAction.CONSUME -> return@onPreviewKeyEvent true
+                        LegacyLiveKeyAction.PASS -> Unit
+                    }
+                    if ((key == LegacyLiveRemoteKey.INFO || key == LegacyLiveRemoteKey.MENU) &&
+                        native.action == KeyEvent.ACTION_DOWN && native.repeatCount == 0 &&
+                        (uiState.showStreamInfoOverlay || !blocked)) {
+                        liveWakeGate.capture(key)
+                        viewModel.onEvent(if (uiState.showStreamInfoOverlay) PlayerEvent.OnDismissStreamInfo else PlayerEvent.OnShowStreamInfo)
+                        return@onPreviewKeyEvent true
+                    }
+                }
                 if (uiState.showStreamInfoOverlay && remoteKey.action == KeyEvent.ACTION_DOWN && remoteKey.repeatCount == 0) {
                     remoteButtons.overrideFor(remoteKey.keyCode)?.takeIf { it.job == RemoteButtonJob.INFO }?.let { binding ->
                         dismissStreamInfoOverlay()
@@ -1968,7 +2025,7 @@ fun PlayerScreen(
             }
 
             PauseOverlay(
-                visible = uiState.showPauseOverlay && uiState.error == null &&
+                visible = !isLegacyChannel && uiState.showPauseOverlay && uiState.error == null &&
                     !uiState.showLoadingOverlay && !postPlayRecommendationState.isVisible && !prepareVisible,
                 onClose = { viewModel.onEvent(PlayerEvent.OnDismissPauseOverlay) },
                 title = uiState.title,
@@ -2355,7 +2412,7 @@ fun PlayerScreen(
                     .zIndex(2.2f)
             )
 
-            val showClockOverlay = uiState.showControls &&
+            val showClockOverlay = !isLegacyChannel && uiState.showControls &&
                 (!isV2 || !uiState.showPlaybackStatsOverlay) &&
                 uiState.osdClockEnabled &&
                 uiState.error == null &&
@@ -2394,7 +2451,26 @@ fun PlayerScreen(
                 exit = fadeOut(animationSpec = tween(PLAYER_CONTROLS_FADE_DURATION_MS))
             ) {
                 val context = LocalContext.current
-                PlayerControlsOverlay(
+                if (livePlayerChannel != null && livePlayerInfo != null) {
+                    LegacyLivePlayerOverlay(
+                        channel = livePlayerChannel, info = livePlayerInfo, player = uiState, media = liveMedia,
+                        playPauseFocus = playPauseFocusRequester, streamInfoFocus = streamInfoFocusRequester,
+                        onPause = { viewModel.onEvent(PlayerEvent.OnPlayPause) },
+                        onGuide = {
+                            val openGuide = onOpenLiveTVGuide
+                            if (openGuide == null) exitPlayer()
+                            else if (!exitDispatched) { exitDispatched = true; viewModel.stopAndRelease(); openGuide() }
+                        },
+                        onAudio = { viewModel.onEvent(PlayerEvent.OnShowAudioOverlay) },
+                        onSubtitles = { viewModel.onEvent(PlayerEvent.OnShowSubtitleOverlay) },
+                        onSources = { viewModel.onEvent(PlayerEvent.OnShowSourcesPanel) },
+                        onInfo = { viewModel.onEvent(PlayerEvent.OnShowStreamInfo) },
+                        onReload = { viewModel.onEvent(PlayerEvent.OnRetry) },
+                        onAspect = { viewModel.onEvent(PlayerEvent.OnToggleAspectRatio) },
+                        onInteraction = { viewModel.scheduleHideControls(); viewModel.onUserInteraction() },
+                        onClearance = { if (latestPlayerControlsVisible) subtitleControlsClearancePx = it }
+                    )
+                } else PlayerControlsOverlay(
                     uiState = uiState,
                     playerBadges = playerBadges,
                     viewModel = viewModel,

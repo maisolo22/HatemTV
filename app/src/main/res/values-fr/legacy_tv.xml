@@ -1,0 +1,12 @@
+<resources>
+    <string name="legacy_skin_title">Skin Nuvio Legacy TV</string>
+    <string name="legacy_skin_subtitle">Menu latéral, fond plein écran et télécommande. Désactiver pour la barre Cinéma.</string>
+    <string name="legacy_live_tv">TV en direct</string>
+    <string name="legacy_addons">Addons</string>
+    <string name="legacy_tv_empty">Aucun catalogue TV. Installez ou activez un addon proposant des chaînes en direct.</string>
+    <string name="legacy_tv_sources">Catalogues de chaînes</string>
+    <string name="legacy_tv_retry">Réessayer</string>
+    <string name="legacy_tv_more">Plus de chaînes</string>
+    <string name="legacy_tv_error">Impossible de charger ce catalogue. Vérifiez l’addon et réessayez.</string>
+    <string name="legacy_tv_hint">Sélectionnez une chaîne pour choisir son flux. Les chaînes disponibles dépendent de vos addons.</string>
+</resources>

@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -56,7 +57,8 @@ class ProfileSelectionViewModel @Inject constructor(
     private val profileLockStateDataStore: ProfileLockStateDataStore,
     private val localAvatars: LocalProfileAvatars,
     private val ratingLimits: com.nuvio.tv.core.ratinglimit.RatingLimitGate,
-    private val pinAskStore: com.nuvio.tv.core.profile.PinAskStore
+    private val pinAskStore: com.nuvio.tv.core.profile.PinAskStore,
+    private val watchProgressPreferences: com.nuvio.tv.data.local.WatchProgressPreferences
 ) : ViewModel() {
     val pinAsks: StateFlow<Map<Int, com.nuvio.tv.core.profile.PinAsk>> get() = pinAskStore.asks
 
@@ -66,6 +68,20 @@ class ProfileSelectionViewModel @Inject constructor(
 
     val activeProfileId: StateFlow<Int> = profileManager.activeProfileId
 
+    // Observe the focused profile directly; never switch the active account to render artwork.
+    private val historyProfileId = MutableStateFlow<Int?>(null)
+    val historyPosters: StateFlow<List<String>> = combine(historyProfileId, profileManager.activeProfileId) {
+        focused, active -> focused ?: active
+    }.distinctUntilChanged().flatMapLatest { id ->
+        watchProgressPreferences.observeAllProgress(id).map { history ->
+            history.asSequence()
+                .filter { it.contentType in setOf("movie", "series") }
+                .mapNotNull { it.poster?.takeIf(String::isNotBlank) }
+                .distinct().take(21).toList()
+        }.onStart { emit(emptyList()) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun focusHistoryProfile(id: Int?) { historyProfileId.value = id }
     val profileRatingLimits: StateFlow<Map<Int, com.nuvio.tv.core.ratinglimit.RatingLimit>> = ratingLimits.limits
         .also { viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { ratingLimits.limitFor(profileManager.activeProfileId.value) } }
 

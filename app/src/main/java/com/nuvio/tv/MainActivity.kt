@@ -7,8 +7,6 @@ import com.nuvio.tv.ui.v2.appearance.ResolvedAppearance
 import com.nuvio.tv.ui.v2.appearance.rememberStableUiScale
 import com.nuvio.tv.ui.v2.appearance.rememberUiCanvasSnapshot
 import com.nuvio.tv.ui.v2.scale.isPlayerUiVisible
-import com.nuvio.tv.ui.v2.profile.startPicture
-import com.nuvio.tv.ui.v2.profile.startPictureOr
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -61,6 +59,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -715,7 +714,7 @@ open class MainActivity : ComponentActivity() {
             val originalScale = uiScalePercent
             // Resolve the device snapshot before profile selection's first themed frame.
             if (device == null || appearance == null || originalScale == null) {
-                Box(Modifier.fillMaxSize().then(if (startPicture.showing) Modifier else Modifier.background(Color.Black)))
+                com.nuvio.tv.ui.components.HatemStartupScreen()
                 return@LauncherOnlySemantics
             }
             SideEffect { com.nuvio.tv.core.util.StartupLatencyTrace.coldOnce("prefs_ready") }
@@ -812,20 +811,12 @@ open class MainActivity : ComponentActivity() {
                     )
 
                     if (hasSeenAuthQrOnFirstLaunch == null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .startPictureOr(startPicture, NuvioTheme.colors.Background)
-                        )
+                        com.nuvio.tv.ui.components.HatemStartupScreen()
                         return@Surface
                     }
 
                     if (authState is AuthState.Loading || activeProfileHasPin == null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .startPictureOr(startPicture, NuvioTheme.colors.Background)
-                        )
+                        com.nuvio.tv.ui.components.HatemStartupScreen()
                         return@Surface
                     }
 
@@ -934,11 +925,7 @@ open class MainActivity : ComponentActivity() {
                     }
                     val layoutChosen = mainUiPrefs.hasChosenLayout
                     if (layoutChosen == null || !mainUiPrefs.experienceModeLoaded || installedAddons == null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .startPictureOr(startPicture, NuvioTheme.colors.Background)
-                        )
+                        com.nuvio.tv.ui.components.HatemStartupScreen()
                         return@Surface
                     }
                     val effectiveExperienceMode = resolveStartExperienceMode(mainUiPrefs.experienceMode, layoutChosen)
@@ -1323,11 +1310,13 @@ open class MainActivity : ComponentActivity() {
                     val strNavDiscover = stringResource(R.string.nav_discover)
                     val strNavSearch = stringResource(R.string.nav_search)
                     val strNavLibrary = stringResource(R.string.nav_library)
+                    val strNavLiveTV = stringResource(R.string.legacy_live_tv)
                     val strNavSettings = stringResource(R.string.nav_settings)
                     val strNavCalendar = stringResource(R.string.nav_calendar)
                     val strNavScout = stringResource(R.string.scout_title)
                     val drawerItems = remember(
                         strNavHome,
+                        strNavLiveTV,
                         strNavDiscover,
                         strNavSearch,
                         strNavLibrary,
@@ -1361,6 +1350,7 @@ open class MainActivity : ComponentActivity() {
                                     iconRes = R.raw.sidebar_search
                                 )
                             )
+                            add(DrawerItem(Screen.LiveTV.route, strNavLiveTV, icon = Icons.Default.LiveTv))
                             if (scoutInMenu) {
                                 add(DrawerItem(route = Screen.Scout.route, label = strNavScout, iconRes = R.raw.sidebar_scout))
                             }
@@ -1564,7 +1554,7 @@ open class MainActivity : ComponentActivity() {
                                 )
                             ) {
                                 // The ident starts with the next frame: keep the start window's mark over Home until then.
-                                Box(Modifier.fillMaxSize().startPicture(startPicture))
+                                com.nuvio.tv.ui.components.HatemStartupScreen()
                             } else {
                                 SideEffect { startPicture.end() }
                             }
@@ -2962,6 +2952,7 @@ internal fun launchTargetsReady(storedMode: ExperienceMode?, hasChosenLayout: Bo
 internal fun appRootRoutes(discoverInSidebar: Boolean, calendarInMenu: Boolean, scoutInMenu: Boolean): Set<String> = buildSet {
     add(Screen.Home.route)
     add(Screen.Search.route)
+    add(Screen.LiveTV.route)
     if (scoutInMenu) add(Screen.Scout.route)
     add(Screen.Library.route)
     if (calendarInMenu) add(Screen.Calendar.route)

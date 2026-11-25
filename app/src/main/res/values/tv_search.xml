@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_search">Search</string>
+    <string name="tv_search_hint">Enter the first characters of the channel name. The current folder or source is filtered as you type.</string>
+    <string name="tv_search_placeholder">Channel name…</string>
+    <string name="tv_search_clear">Clear search</string>
+    <string name="tv_search_results">Show results</string>
+    <string name="tv_search_empty">No channel starts with these characters.</string>
+    <string name="tv_search_active">Starts with “%1$s” · %2$d channels</string>
+</resources>

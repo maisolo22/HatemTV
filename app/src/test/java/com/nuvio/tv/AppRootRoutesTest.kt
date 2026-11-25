@@ -17,7 +17,7 @@ class AppRootRoutesTest {
 
     @Test fun `the other menu pages stay root pages`() {
         assertEquals(
-            setOf(Screen.Home.route, Screen.Search.route, Screen.Library.route, Screen.Settings.route, Screen.Discover.route),
+            setOf(Screen.Home.route, Screen.Search.route, Screen.LiveTV.route, Screen.Library.route, Screen.Settings.route, Screen.Discover.route),
             appRootRoutes(discoverInSidebar = true, calendarInMenu = false, scoutInMenu = false)
         )
         assertFalse(Screen.Discover.route in appRootRoutes(discoverInSidebar = false, calendarInMenu = true, scoutInMenu = false))

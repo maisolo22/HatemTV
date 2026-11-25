@@ -519,6 +519,7 @@ private fun PlaybackNavHost(
         composable(
             route = Screen.Stream.route,
             arguments = listOf(
+                navArgument("liveChannel") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("videoId") { type = NavType.StringType },
                 navArgument("contentType") { type = NavType.StringType },
                 navArgument("title") {
@@ -709,7 +710,8 @@ private fun PlaybackNavHost(
                                     ?: SystemClock.elapsedRealtime(),
                                 profileId = playbackInfo.profileId,
                                 audioDelayMs = playbackInfo.audioDelayMs,
-                                audioDelayLanguage = playbackInfo.audioDelayLanguage
+                                audioDelayLanguage = playbackInfo.audioDelayLanguage,
+                                liveChannel = streamArgs?.getString("liveChannel")
                             )
                         )
                     }
@@ -756,7 +758,8 @@ private fun PlaybackNavHost(
                                 profileId = playbackInfo.profileId,
                                 audioDelayMs = playbackInfo.audioDelayMs,
                                 audioDelayLanguage = playbackInfo.audioDelayLanguage,
-                                fromLinkCache = playbackInfo.fromLinkCache
+                                fromLinkCache = playbackInfo.fromLinkCache,
+                                liveChannel = streamArgs?.getString("liveChannel")
                             )
                         ) {
                             popUpTo(Screen.Stream.route) { inclusive = true }
@@ -769,6 +772,7 @@ private fun PlaybackNavHost(
         composable(
             route = Screen.Player.route,
             arguments = listOf(
+                navArgument("liveChannel") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("streamUrl") { type = NavType.StringType },
                 navArgument("title") {
                     type = NavType.StringType
@@ -980,6 +984,15 @@ private fun PlaybackNavHost(
             }
 
             PlayerScreen(
+                liveChannelRoute = !backStackEntry.arguments?.getString("liveChannel").isNullOrBlank(),
+                onOpenLiveTVGuide = {
+                    if (!navController.popBackStack(Screen.LiveTV.route, inclusive = false)) {
+                        navController.navigate(Screen.LiveTV.route) {
+                            popUpTo(Screen.Player.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                },
                 onBackPress = onBackPress@{ currentVideoId, currentSeason, currentEpisode, autoPlayEnabled, playbackCompleted ->
                     val args = backStackEntry.arguments
                     if (scoutMixNav.backPressed(args?.getString("contentId"), watched = playbackCompleted) &&
@@ -1378,6 +1391,20 @@ private fun PlaybackNavHost(
                             heroBackdropUrl = heroBackdrop
                         )
                     )
+                }
+            )
+        }
+
+        rootComposable(Screen.LiveTV.route) {
+            com.nuvio.tv.ui.screens.livetv.LiveTVScreen(
+                onManageAddons = { navController.navigate(Screen.AddonManager.route) },
+                onPlay = { item ->
+                    navController.navigate(Screen.Stream.createRoute(
+                        videoId = item.id, contentType = item.type,
+                        title = item.name, poster = item.logo, backdrop = item.artwork,
+                        contentId = item.id, contentName = item.name, manualSelection = true,
+                        liveChannel = com.nuvio.tv.ui.screens.player.encodeLivePlayerChannel(item)
+                    ))
                 }
             )
         }

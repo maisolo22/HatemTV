@@ -2,6 +2,10 @@ package com.nuvio.tv.ui.screens.profile
 
 import com.nuvio.tv.core.profile.LocalProfileAvatars
 import com.nuvio.tv.ui.v2.components.v2GlassSource
+import com.nuvio.tv.ui.components.HatemAuthorCredit
+import com.nuvio.tv.ui.components.HatemHistoryBackground
+import com.nuvio.tv.ui.components.HatemProfileAvatar
+import androidx.compose.foundation.layout.absolutePadding
 import androidx.tv.material3.MaterialTheme
 import com.nuvio.tv.ui.theme.NuvioPrimitives
 import com.nuvio.tv.ui.util.contentTextDirection
@@ -12,7 +16,6 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 import com.nuvio.tv.ui.v2.appearance.LocalV2Appearance
 import com.nuvio.tv.ui.v2.components.nuvioGlass
 import com.nuvio.tv.ui.v2.components.GlassRole
-import com.nuvio.tv.ui.v2.profile.V2ProfileLanding
 
 import android.graphics.Rect
 import android.view.KeyEvent as AndroidKeyEvent
@@ -80,6 +83,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
@@ -91,7 +95,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
@@ -221,6 +224,7 @@ fun ProfileSelectionScreen(
     val profiles by viewModel.profiles.collectAsState()
     val localAvatarIds by viewModel.localAvatarIds.collectAsState()
     val activeProfileId by viewModel.activeProfileId.collectAsState()
+    val historyPosters by viewModel.historyPosters.collectAsState()
     val avatarCatalog by viewModel.avatarCatalog.collectAsState()
     val profileBackgroundCatalog by viewModel.profileBackgroundCatalog.collectAsState()
     val hasProfileBackgroundAccess by viewModel.hasProfileBackgroundAccess.collectAsState()
@@ -314,7 +318,6 @@ fun ProfileSelectionScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        val overlayProfileColor = pinOverlayState?.profile?.avatarColorHex?.let(::parseProfileColor)
         val backgroundProfile = pinOverlayState?.profile ?: focusedProfile
         val backgroundSelection = resolveProfileBackgroundSelection(
             profile = backgroundProfile,
@@ -333,12 +336,26 @@ fun ProfileSelectionScreen(
             is ProfileBackgroundSelection.Custom -> ProfileBackgroundArtwork.Custom(backgroundSelection.url)
             null -> null
         }
-        ProfileSelectionBackground(
-            focusedAvatarColor = overlayProfileColor ?: focusedAvatarColor,
-            profileBackground = profileBackground,
-            posterProfileId = backgroundProfile?.id,
-            posterSnapshotVersion = profiles.hashCode()
-        )
+        LaunchedEffect(backgroundProfile?.id) {
+            viewModel.focusHistoryProfile(backgroundProfile?.id)
+        }
+
+        Box(Modifier.fillMaxSize().v2GlassSource()) {
+            if (historyPosters.isNotEmpty() || profileBackground == null) {
+                HatemHistoryBackground(historyPosters)
+            } else when (profileBackground) {
+                is ProfileBackgroundArtwork.Catalog -> ProfileBackgroundImage(
+                    profileBackground.background, null, Modifier.fillMaxSize()
+                )
+                is ProfileBackgroundArtwork.Custom -> CustomProfileBackgroundImage(
+                    profileBackground.url, null, Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        com.nuvio.tv.ui.components.BrandWordmark(Modifier.align(AbsoluteAlignment.TopLeft).absolutePadding(left = 40.dp, top = 20.dp).height(30.dp),
+                contentDescription = stringResource(R.string.hatem_app_name), drawableOverride = R.drawable.hatem_brand_wordmark)
+        HatemAuthorCredit(Modifier.align(AbsoluteAlignment.TopRight))
 
         val mainContentInteractive = !showCreateProfile && profileToEdit == null && longPressedProfile == null &&
             profileToDelete == null && settingsCopyTarget == null
@@ -377,7 +394,6 @@ fun ProfileSelectionScreen(
                         !createOverlayVisibility.targetState && profileToEdit == null,
                     profiles = profiles,
                     activeProfileId = activeProfileId,
-                    initialFocusId = focusedProfileId ?: activeProfileId,
                     canAddProfile = viewModel.canAddProfile,
                     profilePinEnabled = profilePinEnabled,
                     avatarImageUrlsById = avatarImageUrlsById,
@@ -977,83 +993,6 @@ private fun ProfileDialogButton(
 }
 
 @Composable
-private fun ProfileSelectionBackground(
-    focusedAvatarColor: Color,
-    profileBackground: ProfileBackgroundArtwork?,
-    posterProfileId: Int?,
-    posterSnapshotVersion: Int
-) {
-    if (LocalV2Appearance.current != null && profileBackground == null) {
-        com.nuvio.tv.ui.v2.profile.V2ProfileBackdrop(focusedAvatarColor, posterProfileId, posterSnapshotVersion)
-        return
-    }
-    val animatedAvatarColor by animateColorAsState(
-        targetValue = focusedAvatarColor,
-        animationSpec = tween(durationMillis = 520),
-        label = "focusedAvatarColor"
-    )
-    val gradientTop = lerp(NuvioTheme.colors.BackgroundElevated, animatedAvatarColor, 0.3f)
-    val gradientMid = lerp(NuvioTheme.colors.Background, animatedAvatarColor, 0.14f)
-    val halfFadeStrong = animatedAvatarColor.copy(alpha = 0.26f)
-    val halfFadeSoft = animatedAvatarColor.copy(alpha = 0.08f)
-
-    AnimatedContent(
-        targetState = profileBackground,
-        transitionSpec = {
-            fadeIn(tween(320)) togetherWith fadeOut(tween(240))
-        },
-        contentKey = { background ->
-            when (background) {
-                is ProfileBackgroundArtwork.Catalog -> "catalog:${background.background.id}"
-                is ProfileBackgroundArtwork.Custom -> "custom:${background.url}"
-                null -> null
-            }
-        },
-        modifier = Modifier.fillMaxSize().v2GlassSource(),
-        label = "profileBackground"
-    ) { background ->
-        when (background) {
-            is ProfileBackgroundArtwork.Catalog -> ProfileBackgroundImage(
-                background = background.background,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize()
-            )
-            is ProfileBackgroundArtwork.Custom -> CustomProfileBackgroundImage(
-                imageUrl = background.url,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize()
-            )
-            null -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0f to gradientTop,
-                                    0.42f to gradientMid,
-                                    1f to NuvioTheme.colors.Background
-                                )
-                            )
-                        )
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colorStops = arrayOf(
-                                    0f to halfFadeStrong,
-                                    0.45f to halfFadeSoft,
-                                    0.72f to Color.Transparent,
-                                    1f to Color.Transparent
-                                )
-                            )
-                        )
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun ProfileSelectionMainContent(
     screenTitle: String,
     screenSubtitle: String,
@@ -1062,7 +1001,6 @@ private fun ProfileSelectionMainContent(
     enabled: Boolean,
     profiles: List<UserProfile>,
     activeProfileId: Int,
-    initialFocusId: Int,
     canAddProfile: Boolean,
     profilePinEnabled: Map<Int, Boolean>,
     avatarImageUrlsById: Map<String, String>,
@@ -1073,48 +1011,33 @@ private fun ProfileSelectionMainContent(
     onManage: () -> Unit,
     interactive: Boolean
 ) {
-    if (LocalV2Appearance.current != null) {
-        V2ProfileLanding(
-            title = screenTitle, hint = screenHint, profiles = profiles, activeProfileId = activeProfileId,
-            initialFocusId = initialFocusId,
-            avatarUrls = avatarImageUrlsById, canAdd = canAddProfile, management = isManagementMode,
-            onFocused = onProfileFocused, onSelect = onProfileSelected, onLongPress = onProfileLongPress,
-            onAdd = onAddProfileClick, onManage = onManage, interactive = interactive
-        )
-        return
-    }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(
                 horizontal = ProfileSelectionSpacing.ScreenPaddingHorizontal,
-                vertical = ProfileSelectionSpacing.ScreenPaddingVertical
+                vertical = 80.dp
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        MemberBrandWordmark(
-            height = ProfileSelectionSpacing.LogoHeight,
-            contentDescription = stringResource(R.string.cd_nuvio_logo)
-        )
-
-        Spacer(modifier = Modifier.height(ProfileSelectionSpacing.LogoToHeading))
 
         Text(
             text = screenTitle,
             color = NuvioTheme.colors.TextPrimary,
-            fontSize = 44.sp,
+            fontSize = 38.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.5).sp
         )
 
-        Spacer(modifier = Modifier.height(ProfileSelectionSpacing.HeadingToSubheading))
-
-        Text(
-            text = screenSubtitle,
-            color = NuvioTheme.colors.TextSecondary,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Medium
-        )
+        if (isManagementMode) {
+            Spacer(modifier = Modifier.height(ProfileSelectionSpacing.HeadingToSubheading))
+            Text(
+                text = screenSubtitle,
+                color = NuvioTheme.colors.TextSecondary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
 
         Spacer(modifier = Modifier.weight(1f, fill = true))
 
@@ -1122,7 +1045,7 @@ private fun ProfileSelectionMainContent(
             profiles = profiles,
             activeProfileId = activeProfileId,
             isManagementMode = isManagementMode,
-            enabled = enabled,
+            enabled = enabled && interactive,
             canAddProfile = canAddProfile,
             profilePinEnabled = profilePinEnabled,
             avatarImageUrlsById = avatarImageUrlsById,
@@ -1134,6 +1057,11 @@ private fun ProfileSelectionMainContent(
 
         Spacer(modifier = Modifier.weight(1f, fill = true))
 
+        if (LocalV2Appearance.current != null) {
+            Button(onClick = onManage, enabled = enabled && interactive) {
+                Text(stringResource(if (isManagementMode) R.string.sync_generate_done else R.string.profile_manage_button))
+            }
+        }
         Text(
             text = screenHint,
             color = NuvioTheme.colors.TextTertiary.copy(alpha = 0.9f),
@@ -1263,6 +1191,7 @@ private fun ProfileCard(
     onClick: () -> Unit,
     onLongPress: () -> Unit
 ) {
+    val avatarShape = RoundedCornerShape(22.dp)
     var isFocused by remember { mutableStateOf(false) }
     var longPressTriggered by remember { mutableStateOf(false) }
     val longPressKeyTracker = rememberLongPressKeyTracker()
@@ -1358,24 +1287,19 @@ private fun ProfileCard(
             Box(
                 modifier = Modifier
                     .size(outerAvatarSize)
-                    .clip(CircleShape)
+                    .clip(avatarShape)
                     .border(
                         width = NuvioTheme.spacing.hairline,
                         color = NuvioTheme.colors.Border.copy(alpha = 0.75f),
-                        shape = CircleShape
+                        shape = avatarShape
                     )
                     .border(
-                        border = NuvioTheme.focusRing.border(ringWidth, focusProgress),
-                        shape = CircleShape
+                        border = androidx.compose.foundation.BorderStroke(ringWidth, Color.White.copy(alpha = 0.15f + 0.85f * focusProgress)),
+                        shape = avatarShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                ProfileAvatarCircle(
-                    name = profile.name,
-                    colorHex = profile.avatarColorHex,
-                    size = avatarSize,
-                    avatarImageUrl = avatarImageUrl
-                )
+                                    HatemProfileAvatar(profile.name, profile.id, profile.isPrimary, avatarImageUrl, outerAvatarSize - 7.dp)
             }
 
             if (profile.isPrimary) {
@@ -1456,6 +1380,7 @@ private fun AddProfileCard(
     onFocused: () -> Unit,
     onClick: () -> Unit
 ) {
+    val avatarShape = RoundedCornerShape(22.dp)
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val focusProgress by animateFloatAsState(
@@ -1525,17 +1450,17 @@ private fun AddProfileCard(
             Box(
                 modifier = Modifier
                     .size(outerAvatarSize)
-                    .clip(CircleShape)
+                    .clip(avatarShape)
                     .border(
                         width = NuvioTheme.spacing.hairline,
                         color = NuvioTheme.colors.Border.copy(alpha = 0.5f),
-                        shape = CircleShape
+                        shape = avatarShape
                     )
                     .border(
-                        border = NuvioTheme.focusRing.border(ringWidth, focusProgress),
-                        shape = CircleShape
+                        border = androidx.compose.foundation.BorderStroke(ringWidth, Color.White.copy(alpha = 0.15f + 0.85f * focusProgress)),
+                        shape = avatarShape
                     )
-                    .background(addBackgroundColor, CircleShape),
+                    .background(addBackgroundColor, avatarShape),
                 contentAlignment = Alignment.Center
             ) {
                 Box(

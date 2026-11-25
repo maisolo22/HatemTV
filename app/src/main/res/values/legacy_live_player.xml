@@ -1,0 +1,18 @@
+<resources>
+    <string name="lp_live">LIVE</string>
+    <string name="lp_until">Until %1$s</string>
+    <string name="lp_addon">Addon · %1$s</string>
+    <string name="lp_remaining">%1$d min remaining</string>
+    <string name="lp_buffering">Buffering…</string>
+    <string name="lp_paused">Paused</string>
+    <string name="lp_epg_loading">Loading programme guide…</string>
+    <string name="lp_epg_not_set">Configure XMLTV in Live TV → EPG</string>
+    <string name="lp_pause">Pause</string>
+    <string name="lp_play">Play</string>
+    <string name="lp_audio">Audio</string>
+    <string name="lp_subtitles">Subtitles</string>
+    <string name="lp_sources">Sources</string>
+    <string name="lp_info">Info</string>
+    <string name="lp_reload">Reload</string>
+    <string name="lp_aspect">Picture</string>
+</resources>
