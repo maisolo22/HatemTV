@@ -13,7 +13,7 @@ import org.junit.Test
 class HatemCinemaBrandTest {
     @get:Rule val compose = createComposeRule()
     @Test fun startupShowsExactBrandAndDiscreetAuthorInTopRightCorner() {
-        compose.setContent { NuvioTheme { StartupSplashScreen(null, null) } }
+        compose.setContent { NuvioTheme { HatemStartupScreen() } }
         compose.onNodeWithText("Hatem Multi Media").assertIsDisplayed()
         val credit = compose.onNodeWithText("Application codé par El Habib Hatem").assertIsDisplayed()
         val creditBounds = credit.getUnclippedBoundsInRoot()
