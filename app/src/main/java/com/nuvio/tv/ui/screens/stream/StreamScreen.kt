@@ -123,6 +123,7 @@ import kotlinx.coroutines.flow.first
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
 import android.util.Log
@@ -1001,7 +1002,20 @@ private fun RightStreamSection(
             }
         }
 
-        Spacer(modifier = Modifier.height(NuvioTheme.spacing.lg))
+        if (!isLoading && error == null) {
+            Text(
+                text = pluralStringResource(R.plurals.stream_displayed_files, streams.size, streams.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = NuvioTheme.extendedColors.textSecondary,
+                modifier = Modifier.padding(
+                    start = NuvioTheme.spacing.lg,
+                    top = NuvioTheme.spacing.xs,
+                    bottom = NuvioTheme.spacing.sm
+                )
+            )
+        } else {
+            Spacer(modifier = Modifier.height(NuvioTheme.spacing.lg))
+        }
 
         androidx.compose.animation.AnimatedVisibility(
             visible = enter,

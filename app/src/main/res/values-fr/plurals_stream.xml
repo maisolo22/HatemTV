@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="stream_displayed_files">
+        <item quantity="one">%d fichier affiché</item>
+        <item quantity="other">%d fichiers affichés</item>
+    </plurals>
+</resources>

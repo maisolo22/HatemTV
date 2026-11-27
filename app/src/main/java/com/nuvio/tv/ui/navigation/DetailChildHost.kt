@@ -266,6 +266,7 @@ internal fun DetailChildHost(
                             parentNavController.navigateToDetailStream(
                                 videoId, contentType, contentId, title, poster, backdrop, logo,
                                 season, episode, episodeName, genres, year, runtime, contentLanguage,
+                                manualSelection = true,
                                 startFromBeginning = true
                             )
                         }

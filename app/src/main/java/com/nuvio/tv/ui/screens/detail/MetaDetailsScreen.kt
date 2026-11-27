@@ -506,9 +506,6 @@ fun MetaDetailsScreen(
     val heroSourceSignal = viewModel.heroSourceSignal.collectAsStateWithLifecycle()
     val heroSourceLineEnabled by viewModel.heroSourceLineEnabled.collectAsStateWithLifecycle()
     val posterCardCornerRadiusDp by viewModel.posterCardCornerRadiusDp.collectAsStateWithLifecycle()
-    val effectiveAutoplayEnabled by viewModel.effectiveAutoplayEnabled.collectAsStateWithLifecycle(
-        initialValue = false
-    )
     LaunchedEffect(viewModel, uiState.heroPresentationToken, drawnHeroToken, settledBackdropUrl, detailBackdrop.url) {
         if (uiState.heroPresentationToken > 0 && drawnHeroToken == uiState.heroPresentationToken &&
             (detailBackdrop.url == null || settledBackdropUrl == detailBackdrop.url)) {
@@ -960,9 +957,9 @@ fun MetaDetailsScreen(
                     commentsEpisodeTarget = uiState.commentsEpisodeTarget,
                     selectedComment = uiState.selectedComment,
                     onSeasonSelected = { viewModel.onEvent(MetaDetailsEvent.OnSeasonSelected(it)) },
-                    onEpisodeClick = playEpisode,
+                    onEpisodeClick = playEpisodeManually,
                     onEpisodeManualPlayClick = playEpisodeManually,
-                    onPlayClick = playTitle,
+                    onPlayClick = playTitleManually,
                     onPlayManuallyClick = playTitleManually,
                     onEpisodeStartFromBeginningClick = onEpisodeStartFromBeginningClick@{ video ->
                         if (!playbackAvailability.canStream(meta.apiType, video.id, meta.id, video)) {
@@ -1008,7 +1005,7 @@ fun MetaDetailsScreen(
                             meta.resolveContentLanguage()
                         )
                     },
-                    showManualPlayOption = effectiveAutoplayEnabled,
+                    showManualPlayOption = false,
                     onPlayButtonFocused = { viewModel.onEvent(MetaDetailsEvent.OnPlayButtonFocused) },
                     onToggleLibrary = { viewModel.onEvent(MetaDetailsEvent.OnToggleLibrary) },
                     onLibraryLongPress = { viewModel.onEvent(MetaDetailsEvent.OnLibraryLongPress) },

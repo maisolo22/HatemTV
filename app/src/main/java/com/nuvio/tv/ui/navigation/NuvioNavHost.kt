@@ -510,6 +510,7 @@ private fun PlaybackNavHost(
                             contentId = contentId,
                             contentName = title,
                             runtime = runtime,
+                            manualSelection = true,
                             startFromBeginning = true,
                             returnToDetailOnBack = contentType.equals("series", ignoreCase = true),
                             contentLanguage = contentLanguage
