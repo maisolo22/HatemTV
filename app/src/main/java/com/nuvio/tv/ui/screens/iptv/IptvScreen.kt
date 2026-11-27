@@ -41,7 +41,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel, Int) -> Unit) {
+fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel, Int, List<TVProgramme>) -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val profileId = state.profileId
     val selected = state.selected
@@ -170,7 +170,8 @@ fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel,
                                     channel.guideChannel, schedules[channel.key].orEmpty(), now,
                                     if (guideMode) LiveTVViewMode.GUIDE else LiveTVViewMode.LIST,
                                     windowStart, windowStart + 3 * Hour,
-                                    onFocus = {}, onPlay = { profileId?.let { onPlay(channel, it) } },
+                                    onFocus = {},
+                                    onPlay = { profileId?.let { onPlay(channel, it, schedules[channel.key].orEmpty().filter { event -> event.end > now }) } },
                                     onOptions = { details = channel }
                                 )
                             }

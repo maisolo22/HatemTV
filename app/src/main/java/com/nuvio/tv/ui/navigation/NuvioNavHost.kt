@@ -940,7 +940,9 @@ private fun PlaybackNavHost(
                 }
             )
         ) { backStackEntry ->
+            val fromIptv = navController.previousBackStackEntry?.destination?.route == Screen.IPTV.route
             fun popBackToStream(): Boolean {
+                if (fromIptv) return false
                 val autoPlayNavigation = backStackEntry.arguments
                     ?.getString("autoPlayNav")
                     ?.toBooleanStrictOrNull() == true
@@ -986,8 +988,7 @@ private fun PlaybackNavHost(
             PlayerScreen(
                 liveChannelRoute = !backStackEntry.arguments?.getString("liveChannel").isNullOrBlank(),
                 onOpenLiveTVGuide = {
-                    val guideRoute = if (navController.previousBackStackEntry?.destination?.route == Screen.IPTV.route)
-                        Screen.IPTV.route else Screen.LiveTV.route
+                    val guideRoute = if (fromIptv) Screen.IPTV.route else Screen.LiveTV.route
                     if (!navController.popBackStack(guideRoute, inclusive = false)) {
                         navController.navigate(guideRoute) {
                             popUpTo(Screen.Player.route) { inclusive = true }
@@ -996,6 +997,10 @@ private fun PlaybackNavHost(
                     }
                 },
                 onBackPress = onBackPress@{ currentVideoId, currentSeason, currentEpisode, autoPlayEnabled, playbackCompleted ->
+                    if (fromIptv) {
+                        navController.popBackStack()
+                        return@onBackPress
+                    }
                     val args = backStackEntry.arguments
                     if (scoutMixNav.backPressed(args?.getString("contentId"), watched = playbackCompleted) &&
                         navController.popBackStack(Screen.ScoutMix.route, inclusive = false)
@@ -1112,6 +1117,10 @@ private fun PlaybackNavHost(
                     }
                 },
                 onPlaybackEnded = onPlaybackEnded@{ nextVideoId, nextSeason, nextEpisode, exitReason ->
+                    if (fromIptv) {
+                        navController.popBackStack()
+                        return@onPlaybackEnded
+                    }
                     val args = backStackEntry.arguments
                     if (exitReason == PlayerExitReason.ScoutMixNext && scoutMixNav.nextChosen(args?.getString("contentId")) &&
                         navController.popBackStack(Screen.ScoutMix.route, inclusive = false)
@@ -1412,7 +1421,7 @@ private fun PlaybackNavHost(
         }
 
         rootComposable(Screen.IPTV.route) {
-            com.nuvio.tv.ui.screens.iptv.IptvScreen { channel, profileId ->
+            com.nuvio.tv.ui.screens.iptv.IptvScreen { channel, profileId, programmes ->
                 val info = channel.guideChannel
                 navController.navigate(Screen.Player.createRoute(
                     streamUrl = channel.streamUrl,
@@ -1425,7 +1434,8 @@ private fun PlaybackNavHost(
                     logo = info.logo,
                     addonName = info.addonName,
                     headers = channel.headers.takeIf { it.isNotEmpty() },
-                    profileId = profileId
+                    profileId = profileId,
+                    liveChannel = com.nuvio.tv.ui.screens.player.encodeIptvPlayerChannel(info.copy(id = channel.key), programmes)
                 )) { launchSingleTop = true }
             }
         }

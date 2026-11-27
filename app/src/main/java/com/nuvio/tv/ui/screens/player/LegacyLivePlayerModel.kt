@@ -1,15 +1,29 @@
 package com.nuvio.tv.ui.screens.player
 
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.nuvio.tv.ui.screens.livetv.LiveTVChannel
 import com.nuvio.tv.ui.screens.livetv.TVProgramme
 import java.util.Locale
 
 private val liveChannelTypes = setOf("tv", "channel", "channels", "live", "iptv")
 private val liveContextGson = Gson()
+private const val MaxIptvPlayerProgrammes = 6
 
 internal fun encodeLivePlayerChannel(channel: LiveTVChannel): String =
     liveContextGson.toJson(channel.copy(artwork = null, description = null))
+
+internal fun encodeIptvPlayerChannel(channel: LiveTVChannel, programmes: List<TVProgramme>): String {
+    val objectWithGuide = liveContextGson.toJsonTree(channel.copy(artwork = null, description = null)).asJsonObject
+    objectWithGuide.add("iptvGuide", liveContextGson.toJsonTree(programmes.take(MaxIptvPlayerProgrammes)))
+    return liveContextGson.toJson(objectWithGuide)
+}
+
+internal fun decodeIptvPlayerGuide(json: String?): List<TVProgramme>? = runCatching {
+    if (json.isNullOrBlank() || json.length > 32_768) return@runCatching null
+    val guide = JsonParser.parseString(json).asJsonObject.getAsJsonArray("iptvGuide") ?: return@runCatching null
+    guide.take(MaxIptvPlayerProgrammes).map { liveContextGson.fromJson(it, TVProgramme::class.java) }
+}.getOrNull()
 
 internal fun decodeLivePlayerChannel(json: String?): LiveTVChannel? = runCatching {
     if (json.isNullOrBlank() || json.length > 32_768) return@runCatching null

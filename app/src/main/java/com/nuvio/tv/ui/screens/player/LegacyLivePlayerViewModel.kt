@@ -30,6 +30,7 @@ class LegacyLivePlayerViewModel @Inject constructor(
     private val epgRepository: LiveTVEpgRepository
 ) : ViewModel() {
     val routeChannel = decodeLivePlayerChannel(savedStateHandle["liveChannel"])
+    private val iptvGuide = decodeIptvPlayerGuide(savedStateHandle["liveChannel"])
     val routePoster: String? = savedStateHandle["poster"]
     private var playbackProfile = savedStateHandle.get<String>("profileId")?.toIntOrNull()
     private val channel = MutableStateFlow<LiveTVChannel?>(null)
@@ -44,6 +45,10 @@ class LegacyLivePlayerViewModel @Inject constructor(
                     if (playbackProfile == null) playbackProfile = scoped.profileId
                     if (value == null || scoped.profileId != playbackProfile) {
                         state.value = LegacyLivePlayerInfo(); return@collectLatest
+                    }
+                    if (iptvGuide != null) {
+                        state.value = LegacyLivePlayerInfo(value, programmes = iptvGuide, configured = iptvGuide.isNotEmpty())
+                        return@collectLatest
                     }
                     val library = scoped.library
                     val folders = library.folders.filter { folder -> folder.channels.any { it.key == value.key } }.map { it.name }
