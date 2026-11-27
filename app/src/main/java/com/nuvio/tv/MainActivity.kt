@@ -60,6 +60,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -1311,12 +1312,14 @@ open class MainActivity : ComponentActivity() {
                     val strNavSearch = stringResource(R.string.nav_search)
                     val strNavLibrary = stringResource(R.string.nav_library)
                     val strNavLiveTV = stringResource(R.string.legacy_live_tv)
+                    val strNavIPTV = stringResource(R.string.iptv_title)
                     val strNavSettings = stringResource(R.string.nav_settings)
                     val strNavCalendar = stringResource(R.string.nav_calendar)
                     val strNavScout = stringResource(R.string.scout_title)
                     val drawerItems = remember(
                         strNavHome,
                         strNavLiveTV,
+                        strNavIPTV,
                         strNavDiscover,
                         strNavSearch,
                         strNavLibrary,
@@ -1351,6 +1354,7 @@ open class MainActivity : ComponentActivity() {
                                 )
                             )
                             add(DrawerItem(Screen.LiveTV.route, strNavLiveTV, icon = Icons.Default.LiveTv))
+                            add(DrawerItem(Screen.IPTV.route, strNavIPTV, icon = Icons.Default.PlaylistPlay))
                             if (scoutInMenu) {
                                 add(DrawerItem(route = Screen.Scout.route, label = strNavScout, iconRes = R.raw.sidebar_scout))
                             }
@@ -2953,6 +2957,7 @@ internal fun appRootRoutes(discoverInSidebar: Boolean, calendarInMenu: Boolean, 
     add(Screen.Home.route)
     add(Screen.Search.route)
     add(Screen.LiveTV.route)
+    add(Screen.IPTV.route)
     if (scoutInMenu) add(Screen.Scout.route)
     add(Screen.Library.route)
     if (calendarInMenu) add(Screen.Calendar.route)

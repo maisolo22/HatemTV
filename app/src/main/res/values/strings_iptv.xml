@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="iptv_title" translatable="false">IPTV</string>
+    <string name="iptv_playlists">Playlists</string>
+    <string name="iptv_add_playlist">Add a playlist</string>
+    <string name="iptv_edit">Edit</string>
+    <string name="iptv_playlist_name">Playlist name</string>
+    <string name="iptv_m3u_url">M3U or M3U8 URL</string>
+    <string name="iptv_xmltv_url">XMLTV guide URL (optional)</string>
+    <string name="iptv_link_hint">Add an M3U channel playlist. The XMLTV guide in your playlist is detected automatically.</string>
+    <string name="iptv_empty">Open Playlists to add an M3U playlist.</string>
+    <string name="iptv_source_count">%1$s · %2$d channels</string>
+    <string name="iptv_load_error">Could not load the playlist</string>
+    <string name="iptv_check_link">Check the M3U link or refresh the playlist.</string>
+    <string name="iptv_uncategorized">Other channels</string>
+    <string name="iptv_favorites">Favorites</string>
+    <string name="iptv_no_favorites">No matching favorites. Hold OK on a channel to add it.</string>
+    <string name="iptv_add_favorite">Add to favorites</string>
+    <string name="iptv_remove_favorite">Remove from favorites</string>
+    <string name="iptv_delete_playlist">Remove %1$s and its favorites from this profile?</string>
+</resources>

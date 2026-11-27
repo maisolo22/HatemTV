@@ -147,6 +147,7 @@ sealed class Screen(val route: String) {
         }
     }
     data object LiveTV : Screen("live_tv")
+    data object IPTV : Screen("iptv")
     data object Search : Screen("search")
     data object ScoutAsk : Screen("scout_ask")
     data object ScoutAskQuestion : Screen("scout_ask_question/{q}") {

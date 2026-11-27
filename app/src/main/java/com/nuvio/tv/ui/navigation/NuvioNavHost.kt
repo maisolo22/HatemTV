@@ -986,8 +986,10 @@ private fun PlaybackNavHost(
             PlayerScreen(
                 liveChannelRoute = !backStackEntry.arguments?.getString("liveChannel").isNullOrBlank(),
                 onOpenLiveTVGuide = {
-                    if (!navController.popBackStack(Screen.LiveTV.route, inclusive = false)) {
-                        navController.navigate(Screen.LiveTV.route) {
+                    val guideRoute = if (navController.previousBackStackEntry?.destination?.route == Screen.IPTV.route)
+                        Screen.IPTV.route else Screen.LiveTV.route
+                    if (!navController.popBackStack(guideRoute, inclusive = false)) {
+                        navController.navigate(guideRoute) {
                             popUpTo(Screen.Player.route) { inclusive = true }
                             launchSingleTop = true
                         }
@@ -1407,6 +1409,25 @@ private fun PlaybackNavHost(
                     ))
                 }
             )
+        }
+
+        rootComposable(Screen.IPTV.route) {
+            com.nuvio.tv.ui.screens.iptv.IptvScreen { channel, profileId ->
+                val info = channel.guideChannel
+                navController.navigate(Screen.Player.createRoute(
+                    streamUrl = channel.streamUrl,
+                    title = info.name,
+                    contentType = "channel",
+                    contentId = channel.key,
+                    videoId = channel.key,
+                    contentName = info.name,
+                    poster = info.logo,
+                    logo = info.logo,
+                    addonName = info.addonName,
+                    headers = channel.headers.takeIf { it.isNotEmpty() },
+                    profileId = profileId
+                )) { launchSingleTop = true }
+            }
         }
 
         rootComposable(Screen.Library.route) {

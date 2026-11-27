@@ -47,13 +47,14 @@ jobs:
             -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f 1)
           test "$expected_cert" = 60d2d0a81782f6b06459db600ca68179dd4502d7fc9350ab45c9dab6dfa859f9
           ./gradlew :app:testFullDebugUnitTest --tests com.nuvio.tv.data.repository.TraktAuthServiceTest \
+            --tests com.nuvio.tv.ui.screens.iptv.IptvPlaylistTest \
             :app:compileFullDebugAndroidTestKotlin :app:assembleFullDebug \
             "-PhatemArcLauncherLabel=Hatem Multi Media ARC" \
-            -ParcVersionCode=1572 -PnuvioAppIdSuffix=.hatemarcstable -ParcVersionName=1.1.0-nt.9.2-hatem.5 --stacktrace
+            -ParcVersionCode=1573 -PnuvioAppIdSuffix=.hatemarcstable -ParcVersionName=1.1.0-nt.9.2-hatem.6 --stacktrace
           apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
           for abi in armeabi-v7a arm64-v8a; do
             unsigned_source="app/build/outputs/apk/full/debug/app-full-$abi-debug.apk"
-            output_apk="Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.5-$abi.apk"
+            output_apk="Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.6-$abi.apk"
             "$apksigner" sign --ks "$HOME/.android/debug.keystore" --ks-pass pass:android \
               --key-pass pass:android --ks-key-alias androiddebugkey --out "$output_apk" "$unsigned_source"
             verification=$("$apksigner" verify --print-certs "$output_apk")
@@ -67,5 +68,5 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: Hatem-Multi-Media-ARC-MiBox-ARM
-          path: Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.5-*.apk
+          path: Hatem-Multi-Media-ARC-MiBox-1.1.0-nt.9.2-hatem.6-*.apk
           if-no-files-found: error
