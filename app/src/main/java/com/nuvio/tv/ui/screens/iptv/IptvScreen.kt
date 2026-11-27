@@ -26,6 +26,7 @@ import com.nuvio.tv.ui.components.LoadingIndicator
 import com.nuvio.tv.ui.components.NuvioDialog
 import com.nuvio.tv.ui.screens.collection.NuvioTextField
 import com.nuvio.tv.ui.screens.livetv.LegacyTVChannelCard
+import com.nuvio.tv.ui.screens.livetv.LiveTVEpgDialog
 import com.nuvio.tv.ui.screens.livetv.LiveTVSearchDialog
 import com.nuvio.tv.ui.screens.livetv.LiveTVViewMode
 import com.nuvio.tv.ui.screens.livetv.TVBackground
@@ -41,7 +42,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel, Int, List<TVProgramme>) -> Unit) {
+internal fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvPlayback) -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val profileId = state.profileId
     val selected = state.selected
@@ -51,6 +52,7 @@ fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel,
     var editing by remember(profileId) { mutableStateOf<IptvPlaylist?>(null) }
     var confirmingDelete by remember(profileId) { mutableStateOf(false) }
     var search by remember(profileId) { mutableStateOf(false) }
+    var editGuide by remember(profileId, selected?.id) { mutableStateOf(false) }
     var details by remember(profileId, selected?.id) { mutableStateOf<IptvChannel?>(null) }
     var query by rememberSaveable(profileId, selected?.id) { mutableStateOf("") }
     var group by rememberSaveable(profileId, selected?.id) { mutableStateOf<String?>(null) }
@@ -64,12 +66,14 @@ fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel,
         }
     }
     val windowStart = now / HalfHour * HalfHour + timeOffset
-    val visible = remember(channels, group, favoritesOnly, state.favorites, query) {
+    val groupChannels = remember(channels, group, favoritesOnly, state.favorites) {
         channels.filter { channel ->
             (group == null || channel.group == group) &&
-                (!favoritesOnly || channel.key in state.favorites) &&
-                (query.isBlank() || channelStartsWith(channel.guideChannel.name, query))
+                (!favoritesOnly || channel.key in state.favorites)
         }
+    }
+    val visible = remember(groupChannels, query) {
+        if (query.isBlank()) groupChannels else groupChannels.filter { channelStartsWith(it.guideChannel.name, query) }
     }
     val schedules by produceState(emptyMap<String, List<TVProgramme>>(), state.guide, visible, now) {
         value = withContext(Dispatchers.Default) {
@@ -96,6 +100,7 @@ fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel,
                     }
                 }
                 if (selected != null) {
+                    item { TVPill(stringResource(R.string.tv_epg)) { editGuide = true } }
                     item { TVPill(stringResource(R.string.tv_search), query.isNotBlank()) { search = true } }
                     item { TVPill(stringResource(R.string.tv_guide), guideMode) { guideMode = true } }
                     item { TVPill(stringResource(R.string.tv_list), !guideMode) { guideMode = false } }
@@ -109,6 +114,8 @@ fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel,
             state.playlistFailed -> stringResource(R.string.iptv_load_error)
             state.loadingGuide -> stringResource(R.string.tv_epg_loading)
             state.guideFailed -> stringResource(R.string.tv_epg_failed)
+            state.guidePartial -> stringResource(R.string.tv_epg_partial)
+            state.guideStale -> stringResource(R.string.tv_epg_stale)
             selected != null -> stringResource(R.string.iptv_source_count, selected.name, visible.size)
             else -> null
         }
@@ -171,7 +178,7 @@ fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel,
                                     if (guideMode) LiveTVViewMode.GUIDE else LiveTVViewMode.LIST,
                                     windowStart, windowStart + 3 * Hour,
                                     onFocus = {},
-                                    onPlay = { profileId?.let { onPlay(channel, it, schedules[channel.key].orEmpty().filter { event -> event.end > now }) } },
+                                    onPlay = { viewModel.startPlayback(channel, groupChannels)?.let(onPlay) },
                                     onOptions = { details = channel }
                                 )
                             }
@@ -183,6 +190,12 @@ fun IptvScreen(viewModel: IptvViewModel = hiltViewModel(), onPlay: (IptvChannel,
     }
 
     if (search) LiveTVSearchDialog(query, { query = it }, onDismiss = { search = false })
+    if (editGuide && selected != null) LiveTVEpgDialog(
+        urls = selected.epgSources,
+        onSave = { viewModel.saveGuideSources(it); editGuide = false },
+        onRefresh = { viewModel.refreshGuide(); editGuide = false },
+        onDismiss = { editGuide = false }
+    )
     if (manage) {
         val dismiss = { manage = false; editing = null }
         val target = editing
@@ -243,20 +256,17 @@ private fun IptvPlaylistEditor(
 ) {
     var name by remember(playlist) { mutableStateOf(playlist.name) }
     var url by remember(playlist) { mutableStateOf(playlist.url) }
-    var guide by remember(playlist) { mutableStateOf(playlist.guideUrl) }
     val playlistUrl = remember(url) { url.trim().toHttpUrlOrNull() }
-    val guideUrl = remember(guide) { guide.trim().toHttpUrlOrNull() }
     NuvioDialog(onDismiss, title = stringResource(R.string.iptv_playlists), subtitle = stringResource(R.string.iptv_link_hint)) {
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             NuvioTextField(name, { name = it.take(80) }, Modifier.fillMaxWidth(), stringResource(R.string.iptv_playlist_name))
             NuvioTextField(url, { url = it.take(8192) }, Modifier.fillMaxWidth(), stringResource(R.string.iptv_m3u_url))
-            NuvioTextField(guide, { guide = it.take(8192) }, Modifier.fillMaxWidth(), stringResource(R.string.iptv_xmltv_url))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onDismiss) { Text(stringResource(R.string.tv_cancel)) }
             Button(
-                onClick = { onSave(playlist.copy(name = name.trim(), url = playlistUrl.toString(), guideUrl = guideUrl?.toString().orEmpty())) },
-                enabled = name.isNotBlank() && playlistUrl != null && (guide.isBlank() || guideUrl != null)
+                onClick = { onSave(playlist.copy(name = name.trim(), url = playlistUrl.toString())) },
+                enabled = name.isNotBlank() && playlistUrl != null
             ) { Text(stringResource(R.string.tv_save)) }
             if (onDelete != null) Button(onDelete) { Text(stringResource(R.string.tv_delete)) }
         }

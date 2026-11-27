@@ -252,7 +252,8 @@ fun PlayerScreen(
     onPlayRecommendation: (PostPlayRecommendation, manualSelection: Boolean) -> Unit = { _, _ -> },
     onOpenRecommendationDetails: (PostPlayRecommendation) -> Unit = {},
     liveChannelRoute: Boolean = false,
-    onOpenLiveTVGuide: (() -> Unit)? = null
+    onOpenLiveTVGuide: (() -> Unit)? = null,
+    onZapIptv: ((Int) -> Boolean)? = null
 ) {
     val savedUiState by viewModel.uiState.collectAsState()
     val isV2 = LocalV2Appearance.current != null
@@ -265,6 +266,7 @@ fun PlayerScreen(
     val isLegacyChannel = explicitLiveChannel != null
     val livePlayerChannel = explicitLiveChannel
     val liveWakeGate = remember { LegacyLiveWakeGate() }
+    var iptvZapKey by remember { mutableIntStateOf(-1) }
     var liveMedia by remember(uiState.currentStreamUrl, uiState.internalPlayerEngine) { mutableStateOf(PlayerMediaInfo()) }
     LaunchedEffect(livePlayerChannel, uiState.showControls) {
         livePlayerModel?.bind(livePlayerChannel)
@@ -1246,6 +1248,25 @@ fun PlayerScreen(
 
                 val remoteKey = keyEvent.nativeKeyEvent
                 val firstDown = remoteKey.action == KeyEvent.ACTION_DOWN && remoteKey.repeatCount == 0
+                if (onZapIptv != null) {
+                    if (iptvZapKey == remoteKey.keyCode) {
+                        if (remoteKey.action == KeyEvent.ACTION_UP) {
+                            iptvZapKey = -1
+                            val direction = iptvZapDirection(remoteKey.keyCode, controlsVisible = false)
+                            if (direction != null && !remoteKey.isCanceled && !exitDispatched && onZapIptv(direction)) {
+                                exitDispatched = true
+                                viewModel.stopAndRelease()
+                            }
+                        }
+                        return@onPreviewKeyEvent true
+                    }
+                    if (firstDown && !legacyLiveInputBlocked(uiState, allowWhileLoading = true) &&
+                        iptvZapDirection(remoteKey.keyCode, uiState.showControls || uiState.showPauseOverlay) != null
+                    ) {
+                        iptvZapKey = remoteKey.keyCode
+                        return@onPreviewKeyEvent true
+                    }
+                }
                 remoteClaim.bindingFor(remoteKey.keyCode)?.let { binding ->
                     if (firstDown) {
                         remoteClaim.release()

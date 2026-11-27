@@ -6,7 +6,6 @@
     <string name="iptv_edit">Edit</string>
     <string name="iptv_playlist_name">Playlist name</string>
     <string name="iptv_m3u_url">M3U or M3U8 URL</string>
-    <string name="iptv_xmltv_url">XMLTV guide URL (optional)</string>
     <string name="iptv_link_hint">Add an M3U channel playlist. The XMLTV guide in your playlist is detected automatically.</string>
     <string name="iptv_empty">Open Playlists to add an M3U playlist.</string>
     <string name="iptv_source_count">%1$s · %2$d channels</string>

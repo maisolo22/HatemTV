@@ -1,10 +1,14 @@
 package com.nuvio.tv.ui.screens.iptv
 
+import android.view.KeyEvent
+import com.nuvio.tv.ui.screens.player.iptvZapDirection
 import java.io.IOException
+import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class IptvPlaylistTest {
@@ -23,7 +27,7 @@ class IptvPlaylistTest {
             https://tv.test/live/rai.ts
         """.trimIndent()
         val catalog = parse(input)
-        assertEquals(listOf(source.guideUrl, "https://example.test/lists/guide.xml.gz"), catalog.guideUrls)
+        assertEquals(listOf(source.guideUrl, "https://example.test/lists/guide.xml.gz"), source.resolveGuides(catalog.embeddedGuideUrls))
         val (sport, rai) = catalog.channels
         assertEquals("France, sports", sport.group)
         assertEquals("Sport, HD", sport.guideChannel.name)
@@ -55,6 +59,40 @@ class IptvPlaylistTest {
     @Test(expected = IOException::class)
     fun `a media HLS playlist is rejected as a channel list`() {
         parse("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\nsegment.ts")
+    }
+
+    @Test
+    fun `older sources migrate and new manual guide order takes priority over embedded guides`() {
+        val legacy = Json.decodeFromString<IptvPlaylist>(
+            """{"id":"test","name":"TV","url":"https://example.test/live.m3u","guideUrl":"https://epg.test/old.xml"}"""
+        )
+        assertEquals(listOf("https://epg.test/old.xml"), legacy.epgSources)
+        val first = "https://epg.test/new.xml"
+        val auto = "https://epg.test/automatic.xml"
+        val updated = legacy.withEpgSources(listOf(first, legacy.guideUrl))
+        assertEquals(listOf(first, legacy.guideUrl, auto), updated.resolveGuides(listOf(auto, first)))
+        assertEquals(listOf(auto), updated.withEpgSources(emptyList()).resolveGuides(listOf(auto)))
+    }
+
+    @Test
+    fun `zapping stays in the playback order and wraps at each end`() {
+        val channels = parse("#EXTM3U\n#EXTINF:-1,One\none.ts\n#EXTINF:-1,Two\ntwo.ts\n#EXTINF:-1,Three\nthree.ts").channels
+        val (first, second, last) = channels
+        assertEquals(second, adjacentIptvChannel(channels, first.key, 1))
+        assertEquals(first, adjacentIptvChannel(channels, last.key, 1))
+        assertEquals(last, adjacentIptvChannel(channels, first.key, -1))
+        assertNull(adjacentIptvChannel(listOf(first), first.key, 1))
+        assertNull(adjacentIptvChannel(channels, "unknown", 1))
+    }
+
+    @Test
+    fun `channel buttons zap while arrow keys only zap with hidden controls`() {
+        assertEquals(1, iptvZapDirection(KeyEvent.KEYCODE_CHANNEL_UP, controlsVisible = true))
+        assertEquals(-1, iptvZapDirection(KeyEvent.KEYCODE_CHANNEL_DOWN, controlsVisible = true))
+        assertEquals(1, iptvZapDirection(KeyEvent.KEYCODE_DPAD_UP, controlsVisible = false))
+        assertEquals(-1, iptvZapDirection(KeyEvent.KEYCODE_DPAD_DOWN, controlsVisible = false))
+        assertNull(iptvZapDirection(KeyEvent.KEYCODE_DPAD_UP, controlsVisible = true))
+        assertNull(iptvZapDirection(KeyEvent.KEYCODE_DPAD_LEFT, controlsVisible = false))
     }
 
     private fun parse(input: String) =

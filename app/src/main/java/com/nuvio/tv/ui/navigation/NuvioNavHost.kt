@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.navigation.NavHostController
@@ -45,8 +46,11 @@ import com.nuvio.tv.ui.screens.home.HomeScreen
 import com.nuvio.tv.ui.screens.addon.AddonManagerScreen
 import com.nuvio.tv.ui.screens.addon.CatalogOrderScreen
 import com.nuvio.tv.ui.screens.library.LibraryScreen
+import com.nuvio.tv.ui.screens.iptv.IptvPlayback
+import com.nuvio.tv.ui.screens.iptv.IptvViewModel
 import com.nuvio.tv.ui.screens.player.PlayerExitReason
 import com.nuvio.tv.ui.screens.player.PlayerScreen
+import com.nuvio.tv.ui.screens.player.encodeIptvPlayerChannel
 import com.nuvio.tv.ui.screens.player.isShortPlaceholderDuration
 import com.nuvio.tv.ui.screens.player.PostPlayRecommendation
 import com.nuvio.tv.ui.screens.player.playerBackOpensCurrentEpisodeStreams
@@ -940,7 +944,13 @@ private fun PlaybackNavHost(
                 }
             )
         ) { backStackEntry ->
-            val fromIptv = navController.previousBackStackEntry?.destination?.route == Screen.IPTV.route
+            val iptvEntry = remember(backStackEntry) {
+                navController.previousBackStackEntry?.takeIf { it.destination.route == Screen.IPTV.route }
+            }
+            val fromIptv = iptvEntry != null
+            val iptvViewModel = iptvEntry?.let {
+                androidx.hilt.navigation.compose.hiltViewModel<IptvViewModel>(it)
+            }
             fun popBackToStream(): Boolean {
                 if (fromIptv) return false
                 val autoPlayNavigation = backStackEntry.arguments
@@ -987,6 +997,17 @@ private fun PlaybackNavHost(
 
             PlayerScreen(
                 liveChannelRoute = !backStackEntry.arguments?.getString("liveChannel").isNullOrBlank(),
+                onZapIptv = iptvViewModel?.let { model ->
+                    zap@{ direction ->
+                        val currentKey = backStackEntry.arguments?.getString("videoId") ?: return@zap false
+                        val playback = model.zap(currentKey, direction) ?: return@zap false
+                        navController.navigate(iptvPlayerRoute(playback)) {
+                            popUpTo(Screen.Player.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                        true
+                    }
+                },
                 onOpenLiveTVGuide = {
                     val guideRoute = if (fromIptv) Screen.IPTV.route else Screen.LiveTV.route
                     if (!navController.popBackStack(guideRoute, inclusive = false)) {
@@ -1421,22 +1442,8 @@ private fun PlaybackNavHost(
         }
 
         rootComposable(Screen.IPTV.route) {
-            com.nuvio.tv.ui.screens.iptv.IptvScreen { channel, profileId, programmes ->
-                val info = channel.guideChannel
-                navController.navigate(Screen.Player.createRoute(
-                    streamUrl = channel.streamUrl,
-                    title = info.name,
-                    contentType = "channel",
-                    contentId = channel.key,
-                    videoId = channel.key,
-                    contentName = info.name,
-                    poster = info.logo,
-                    logo = info.logo,
-                    addonName = info.addonName,
-                    headers = channel.headers.takeIf { it.isNotEmpty() },
-                    profileId = profileId,
-                    liveChannel = com.nuvio.tv.ui.screens.player.encodeIptvPlayerChannel(info.copy(id = channel.key), programmes)
-                )) { launchSingleTop = true }
+            com.nuvio.tv.ui.screens.iptv.IptvScreen { playback ->
+                navController.navigate(iptvPlayerRoute(playback)) { launchSingleTop = true }
             }
         }
 
@@ -1791,6 +1798,25 @@ private fun PlaybackNavHost(
             )
         }
     }
+}
+
+private fun iptvPlayerRoute(playback: IptvPlayback): String {
+    val channel = playback.channel
+    val info = channel.guideChannel
+    return Screen.Player.createRoute(
+        streamUrl = channel.streamUrl,
+        title = info.name,
+        contentType = "channel",
+        contentId = channel.key,
+        videoId = channel.key,
+        contentName = info.name,
+        poster = info.logo,
+        logo = info.logo,
+        addonName = info.addonName,
+        headers = channel.headers.takeIf { it.isNotEmpty() },
+        profileId = playback.profileId,
+        liveChannel = encodeIptvPlayerChannel(info.copy(id = channel.key), playback.programmes)
+    )
 }
 
 @androidx.compose.runtime.Composable

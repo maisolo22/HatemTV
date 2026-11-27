@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.screens.iptv
 
 import com.nuvio.tv.ui.screens.livetv.LiveTVChannel
+import com.nuvio.tv.ui.screens.livetv.TVProgramme
 import com.nuvio.tv.ui.screens.livetv.cleanEpgSources
 import java.io.BufferedReader
 import java.io.IOException
@@ -10,7 +11,20 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @Serializable
-data class IptvPlaylist(val id: String, val name: String, val url: String, val guideUrl: String = "") {
+data class IptvPlaylist(
+    val id: String, val name: String, val url: String,
+    val guideUrl: String = "",
+    val guideUrls: List<String>? = null
+) {
+    val epgSources: List<String> get() = cleanEpgSources(guideUrls ?: listOf(guideUrl))
+
+    fun withEpgSources(urls: List<String>): IptvPlaylist {
+        val clean = cleanEpgSources(urls)
+        return copy(guideUrl = clean.firstOrNull().orEmpty(), guideUrls = clean)
+    }
+
+    internal fun resolveGuides(embedded: List<String>): List<String> = cleanEpgSources(epgSources + embedded)
+
     override fun toString() = "IptvPlaylist(id=$id)"
 }
 
@@ -24,7 +38,16 @@ data class IptvChannel(
     override fun toString() = "IptvChannel(key=$key)"
 }
 
-internal data class IptvCatalog(val channels: List<IptvChannel>, val guideUrls: List<String>)
+internal data class IptvCatalog(val channels: List<IptvChannel>, val embeddedGuideUrls: List<String>)
+
+internal data class IptvPlayback(val channel: IptvChannel, val profileId: Int, val programmes: List<TVProgramme>)
+
+internal fun adjacentIptvChannel(channels: List<IptvChannel>, currentKey: String, direction: Int): IptvChannel? {
+    if (channels.size < 2 || (direction != -1 && direction != 1)) return null
+    val current = channels.indexOfFirst { it.key == currentKey }
+    if (current == -1) return null
+    return channels[(current + direction + channels.size) % channels.size]
+}
 
 internal fun parseIptvPlaylist(
     reader: BufferedReader,
@@ -41,7 +64,6 @@ internal fun parseIptvPlaylist(
         .flatMap { it.split(',').asSequence() }
         .mapNotNull { url -> url.trim().takeIf(String::isNotEmpty)?.let { baseUrl.resolve(it)?.toString() } }
         .toList()
-    val guideUrls = cleanEpgSources(listOf(playlist.guideUrl) + embeddedGuides)
     val channels = linkedMapOf<String, IptvChannel>()
     val digest = MessageDigest.getInstance("SHA-256")
     var entry: M3uEntry? = null
@@ -86,7 +108,7 @@ internal fun parseIptvPlaylist(
         }
     }
     if (channels.isEmpty()) throw IOException("No IPTV channels")
-    return IptvCatalog(channels.values.toList(), guideUrls)
+    return IptvCatalog(channels.values.toList(), cleanEpgSources(embeddedGuides))
 }
 
 private data class M3uEntry(

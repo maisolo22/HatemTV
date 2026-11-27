@@ -1,5 +1,6 @@
 package com.nuvio.tv.ui.screens.player
 
+import android.view.KeyEvent
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.nuvio.tv.ui.screens.livetv.LiveTVChannel
@@ -76,7 +77,16 @@ internal fun legacyLiveTechnicalLabels(media: PlayerMediaInfo, fps: Float): List
     addAll(media.hdr.distinct())
 }
 
-internal fun legacyLiveInputBlocked(s: PlayerUiState): Boolean = s.error != null || s.showLoadingOverlay ||
+internal fun iptvZapDirection(keyCode: Int, controlsVisible: Boolean): Int? = when (keyCode) {
+    KeyEvent.KEYCODE_CHANNEL_UP -> 1
+    KeyEvent.KEYCODE_CHANNEL_DOWN -> -1
+    KeyEvent.KEYCODE_DPAD_UP -> if (controlsVisible) null else 1
+    KeyEvent.KEYCODE_DPAD_DOWN -> if (controlsVisible) null else -1
+    else -> null
+}
+
+internal fun legacyLiveInputBlocked(s: PlayerUiState, allowWhileLoading: Boolean = false): Boolean =
+    s.error != null || (!allowWhileLoading && s.showLoadingOverlay) ||
     s.showAudioOverlay || s.showSubtitleOverlay || s.showSubtitleStylePanel || s.showSubtitleTimingDialog ||
     s.showSubtitleDelayOverlay || s.showSpeedDialog || s.showMoreDialog || s.showSourcesPanel ||
     s.showEpisodesPanel || s.showChaptersPanel || s.showPartyPanel || s.showStreamInfoOverlay ||
